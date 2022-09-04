@@ -5,6 +5,59 @@ use feature qw(say);
 use Getopt::Long; # for processing command line args
 use File::Basename;
 
+########## subroutines
+sub Average {
+	my $n = scalar(@_); # how many args into function
+	my $sum=0;
+	foreach my $item (@_) {
+		$sum+=$item;
+	}
+	my $average = $sum/$n;
+	return $average;
+}
+sub EvenDistribution {
+	my $noOfEntriesWanted=$_[0];
+	my $high=$_[1];
+	my $low=$_[2];
+	say "number of entries wanted: ".$noOfEntriesWanted;
+	say "high entry: $high";
+	say "low entry: $low";
+	
+	# get the entry values 
+	my $highLowDiff = $high - $low;
+	my $entryIncrement = $highLowDiff / ($noOfEntriesWanted-1);
+	say "The difference between high and low entries: $highLowDiff";
+	say "The increment is: $entryIncrement";
+	my @entryValsArr;
+	for(my $i=0; $i<$noOfEntriesWanted; $i++){
+		push (@entryValsArr, $low+($entryIncrement*$i));
+	}
+	print "entryValsArr: @entryValsArr\n";
+	
+	# get the percentage values 
+	my $percentageIncrement = 100/$noOfEntriesWanted;
+	my $percentIncrementBase = int($percentageIncrement);
+	#my $percentIncrementDecimal = sprintf("%.2f",$percentageIncrement-$percentIncrementBase);
+	my @baseArr;
+	my $sum=0;
+	for(my $i=0; $i<$noOfEntriesWanted; $i++){
+		push (@baseArr, $percentIncrementBase);
+		$sum+=$percentIncrementBase;
+	}
+	print "baseArr: @baseArr\n";
+	print "sum: $sum\n";
+	# brute force the percentages to have a total of 100
+	if ($sum<100){
+		my $toAdd=100-$sum;
+		my $arraySize=@baseArr;
+		for (my $i=0; $i<$toAdd; $i++){
+			$baseArr[$i]+=1;
+		}
+		#$baseArr[$arraySize-1]+=$toAdd;
+	}
+	print "baseArr: @baseArr\n";
+}
+
 ########## Client: 
 my $client01 = "BM BinFuts (main)";
 my $client02 = "BM BinSpot (main)";
@@ -108,29 +161,16 @@ if ($tradeTypeIn eq "long") {
 	die "error: TradeType must be 'long' or 'short'";
 }
 
-my $i=0;
-my $thediff =0;
-my $theincrement=0;
-my $newval=0;
-$thediff = $highEntry - $lowEntry;
-say "The difference is: ".$thediff;
-$theincrement = $thediff / $numberOfEntries;
-say "The increment is: ".$theincrement;
-for($i=0; $i<10; $i++){
-	#$newval = sprintf("%.3f",$i);
-	printf("%.3f ", $i);
-}
-printf("\n");
-
 say"";
 say"";
 say"";
 say $pair;
-say "Client: ".$clientSelected;
-say "Trade Type: ".$tradeTypeSelected;
-if ($levCross >= 1) { say "Leverage: Cross (".$leverage.".0X)"; }
+say "Client: $clientSelected";
+say "Trade Type: $tradeTypeSelected";
+if ($levCross >= 1) { say "Leverage: Cross ($leverage.0X)"; }
 say"";
 say "Entry Targets:";
+EvenDistribution($numberOfEntries,$highEntry,$lowEntry);
 say"";
 say "Take-Profit Targets:";
 say"";
@@ -140,3 +180,6 @@ say $trailingLine01;
 say $trailingLine02;
 say $trailingLine03;
 say $trailingLine04;
+
+
+	
