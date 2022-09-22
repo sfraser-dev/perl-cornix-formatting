@@ -4,6 +4,8 @@ use strict;
 use feature qw(say);
 use Getopt::Long; # for processing command line args
 use File::Basename;
+use POSIX qw(strftime);
+
 
 ########## subroutines
 sub Average {
@@ -200,6 +202,7 @@ if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
 	die "error: wrong stop-loss placement for a short";
 }
 
+# print the cornix template
 say"";
 say"";
 say"";
@@ -220,6 +223,23 @@ say $trailingLine01;
 say $trailingLine02;
 say $trailingLine03;
 say $trailingLine04;
+say"";
+say"";
 
+# creating a filename
+my $perlFilenameBase;
+my $logFile;
+my $date;
+my $dateWee;
+my $pairNoSlash;
+$perlFilenameBase=basename($0);
+$perlFilenameBase=~s/\.pl//;
+say "$logFile";
+$date = strftime "%Y%m%d", localtime;
+$dateWee = substr($date, 2);
+$pairNoSlash = $pair;
+$pairNoSlash =~ s/\///g;
+$logFile = "$perlFilenameBase-$dateWee-$pairNoSlash-$tradeTypeIn\.log";
+print $logFile;
 
 	
