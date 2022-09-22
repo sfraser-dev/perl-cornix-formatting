@@ -340,16 +340,15 @@ if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
 	die "error: wrong stop-loss placement for a short";
 }
 
-# print the cornix template
+# create the cornix template as an array of strings
 @cornixTemplate = createTemplate(		$pair,$clientSelected,$tradeTypeSelected,$levCross,
 								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
 								$highTarget,$lowTarget,$stopLoss,$trailingConfig);
 
-# print to screen
+# print template to screen
 say @cornixTemplate;
-# print to file
+# print template to file
 $fileName = createFileName($script_name, $pair, $tradeTypeIn);
-say $fileName;
 open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
 say $fh @cornixTemplate;
 
