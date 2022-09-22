@@ -16,46 +16,54 @@ sub Average {
 	return $average;
 }
 sub EvenDistribution {
-	my $noOfEntriesWanted=$_[0];
+	my $noOfEntriesOrTargetsWanted=$_[0];
 	my $high=$_[1];
 	my $low=$_[2];
-	say "number of entries wanted: ".$noOfEntriesWanted;
-	say "high entry: $high";
-	say "low entry: $low";
+	# say "number of entries wanted: ".$noOfEntriesOrTargetsWanted;
+	# say "high entry: $high";
+	# say "low entry: $low";
 	
 	# get the entry values 
 	my $highLowDiff = $high - $low;
-	my $entryIncrement = $highLowDiff / ($noOfEntriesWanted-1);
-	say "The difference between high and low entries: $highLowDiff";
-	say "The increment is: $entryIncrement";
-	my @entryValsArr;
-	for(my $i=0; $i<$noOfEntriesWanted; $i++){
-		push (@entryValsArr, $low+($entryIncrement*$i));
+	my $entryIncrement = $highLowDiff / ($noOfEntriesOrTargetsWanted-1);
+	# say "The difference between high and low entries: $highLowDiff";
+	# say "The increment is: $entryIncrement";
+	my @entryOrTargetValsArr;
+	for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
+		push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
 	}
-	print "entryValsArr: @entryValsArr\n";
+	#print "entryOrTargetValsArr: @entryOrTargetValsArr\n";
 	
 	# get the percentage values 
-	my $percentageIncrement = 100/$noOfEntriesWanted;
+	my $percentageIncrement = 100/$noOfEntriesOrTargetsWanted;
+	# floor the percentage values to integers
 	my $percentIncrementBase = int($percentageIncrement);
 	#my $percentIncrementDecimal = sprintf("%.2f",$percentageIncrement-$percentIncrementBase);
-	my @baseArr;
+	my @percentageArr;
 	my $sum=0;
-	for(my $i=0; $i<$noOfEntriesWanted; $i++){
-		push (@baseArr, $percentIncrementBase);
+	for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
+		push (@percentageArr, $percentIncrementBase);
 		$sum+=$percentIncrementBase;
 	}
-	print "baseArr: @baseArr\n";
-	print "sum: $sum\n";
+	#print "percentageArr: @percentageArr\n";
+	#print "sum: $sum\n";
 	# brute force the percentages to have a total of 100
 	if ($sum<100){
 		my $toAdd=100-$sum;
-		my $arraySize=@baseArr;
+		my $arraySize=@percentageArr;
 		for (my $i=0; $i<$toAdd; $i++){
-			$baseArr[$i]+=1;
+			$percentageArr[$i]+=1;
 		}
-		#$baseArr[$arraySize-1]+=$toAdd;
 	}
-	print "baseArr: @baseArr\n";
+	#print "entryOrTargetValsArr: @entryOrTargetValsArr\n";
+	#print "percentageArr: @percentageArr\n";
+	# print out the entries / targets and their percentage allocations
+	for my $i (0 .. $#entryOrTargetValsArr){
+		my $loc = $i+1;
+		my $val = sprintf("%.5f",$entryOrTargetValsArr[$i]);
+		my $perc = $percentageArr[$i];
+		print "$loc) $val - $perc%\n";
+	}
 }
 
 ########## Client: 
@@ -80,7 +88,7 @@ my $levCross = "Cross";  ## Leverage: Cross (4.0X)!!!!!
 my $trailingLine01 = "Trailing Configuration:";
 my $trailingLine02 = "Entry: Percentage (0.0%)";
 my $trailingLine03 = "Take-Profit: Percentage (0.0%)";
-my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target(1)";
+my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
 
 
 my $script_name = basename($0);
@@ -88,6 +96,10 @@ my $usage = sprintf("usage is: %s -n NoEntries -h highEntry -l lowEntry -p CoinP
 my $numberOfEntries;
 my $highEntry;
 my $lowEntry;
+my $stopLoss;
+my $numberOfTargets;
+my $highTarget;
+my $lowTarget;
 my $pair;
 my $clientIn;
 my $clientSelected;
@@ -100,31 +112,45 @@ GetOptions( \%args,
 			'n=s', # number of entries
 			'h=s', # highest entry value
             'l=s', # lowest entry value
+			's=s', # stop-loss
 			'p=s', # coin pair
 			'c=s', # client
 			't=s', # trade type
-			'v=s'  # leverage
+			'v=s', # leverage
+			'x=s', # number of targets
+			'y=s', # lowest target value
+			'z=s'  # highest target value
           ) or die "Invalid command line arguments!";
 die "Missing -n!\n".$usage unless $args{n};
-die "Missing -f!\n".$usage unless $args{h};
+die "Missing -h!\n".$usage unless $args{h};
 die "Missing -l!\n".$usage unless $args{l};
+die "Missing -s!\n".$usage unless $args{s};
 die "Missing -p!\n".$usage unless $args{p};
 die "Missing -c!\n".$usage unless $args{c};
 die "Missing -t!\n".$usage unless $args{t};
 die "Missing -v!\n".$usage unless $args{v};
+die "Missing -x!\n".$usage unless $args{x};
+die "Missing -y!\n".$usage unless $args{y};
+die "Missing -z!\n".$usage unless $args{z};
 
 $numberOfEntries = $args{n};
 $highEntry = $args{h};
 $lowEntry = $args{l};
+$stopLoss = $args{s};
 $pair = $args{p};
 $clientIn = $args{c};
 $tradeTypeIn = $args{t};
 $leverage = $args{v};
+$numberOfTargets = $args{x};
+$lowTarget = $args{y};
+$highTarget = $args{z};
 
 # number of entries should be greater than 2
 if ($numberOfEntries <= 2) { die "\nerror: numberOfEntries should be > 2\n".$usage; }
 # make sure high entry is above the low entry
 if ($highEntry <= $lowEntry) { die "\nerror: highEntry is <= lowEntry\n".$usage; }
+# make sure high target is above the low target
+if ($highTarget <= $lowTarget) { die "\nerror: highTarget is <= lowTarget\n".$usage; }
 # client / exchange to use
 if ($clientIn == 1) {
 	$clientSelected = $client01;
@@ -161,11 +187,17 @@ if ($tradeTypeIn eq "long") {
 } else {
 	die "error: TradeType must be 'long' or 'short'";
 }
-# cannot read "0" from command line, use "-1" for no leverage
+# leverage: cannot read "0" from command line, use "-1" for no leverage
 if (($leverage<-1) or ($leverage >20)) { 
 	die "error: incorrect leverage (-1 <= lev <=20)";
 } else {
 	$levCross  = $leverage;
+}
+# check stop-loss value makes sense
+if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
+	die "error: wrong stop-loss placement for a long";
+} elsif (($tradeIsALong == 0) and ($stopLoss <= $highEntry)) {
+	die "error: wrong stop-loss placement for a short";
 }
 
 say"";
@@ -180,8 +212,9 @@ say "Entry Targets:";
 EvenDistribution($numberOfEntries,$highEntry,$lowEntry);
 say"";
 say "Take-Profit Targets:";
+EvenDistribution($numberOfTargets,$highTarget,$lowTarget);
 say"";
-say "Stop Targets:";
+say "Stop Targets:\n1) $stopLoss - 100%";
 say"";
 say $trailingLine01;
 say $trailingLine02;
