@@ -20,7 +20,7 @@ sub createFileName {
 	$dateWee = substr($date, 2);
 	$pairNoSlash = $pair;
 	$pairNoSlash =~ s/\///g;
-	$txtFile = "$scriptName-$dateWee-$pairNoSlash-$tradeTypeIn\.log";
+	$txtFile = "$scriptName-$dateWee-$pairNoSlash-$tradeTypeIn\.txt";
 	return $txtFile;
 }
 
@@ -116,6 +116,7 @@ sub createTemplate {
 	return @template;
 }
 sub readTradeFile {
+	my $path_to_file = $_[0];
 	my %dataHash = 	( 'coinPair' => "xxx/usdt",
 					'client' => 999999,
 					'tradeType' => "xxx",
@@ -128,8 +129,6 @@ sub readTradeFile {
 					'lowTarget' => 0,
 					'highTarget' => 0
 				);
-	my $path_to_file = ".\\trade-setup.txt";
-	my @setupFromFile;
 	open my $info, $path_to_file or die "Could not open $path_to_file: $!";
 	while( my $line = <$info>) {   
 		if ($line =~ m/coinPair/) {
@@ -198,7 +197,6 @@ sub readTradeFile {
 			chomp($val);
 			$dataHash{highTarget}=$val;
 		}
-		push(@setupFromFile, $line);
 	}
 	close $info;
 	return %dataHash;
@@ -230,7 +228,7 @@ my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
 my $trailingConfig = "$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n";
 
 my $script_name = basename($0);
-my $usage = sprintf("usage is: %s -n NoEntries -h highEntry -l lowEntry -s stopLoss -p CoinPair -c Client -t TradeType -v Leverage -x NoTargets -y lowTarget -z highTarget",$script_name); 
+my $usage = sprintf("usage is: %s -f tradeSetup.txt",$script_name); 
 my $noOfEntries;
 my $highEntry;
 my $lowEntry;
@@ -248,59 +246,43 @@ my $tradeIsALong;
 my @cornixTemplate;
 my $fileName;
 my $fh;
+my $path_to_file;
 my %dataHash;
-
-# read trade file
-%dataHash = readTradeFile();
-say"";
-say"";
-foreach my $key (keys %dataHash) {
-	my $val = $dataHash{$key};
-	print("$val\n");
-}
-say"";
-say"";
-
 my %args;
 GetOptions( \%args,
-			'n=s', # number of entries
-			'h=s', # highest entry value
-            'l=s', # lowest entry value
-			's=s', # stop-loss
-			'p=s', # coin pair
-			'c=s', # client
-			't=s', # trade type
-			'v=s', # leverage
-			'x=s', # number of targets
-			'y=s', # lowest target value
-			'z=s'  # highest target value
+			'f=s' # filename
           ) or die "Invalid command line arguments!";
-die "Missing -n!\n".$usage unless $args{n};
-die "Missing -h!\n".$usage unless $args{h};
-die "Missing -l!\n".$usage unless $args{l};
-die "Missing -s!\n".$usage unless $args{s};
-die "Missing -p!\n".$usage unless $args{p};
-die "Missing -c!\n".$usage unless $args{c};
-die "Missing -t!\n".$usage unless $args{t};
-die "Missing -v!\n".$usage unless $args{v};
-die "Missing -x!\n".$usage unless $args{x};
-die "Missing -y!\n".$usage unless $args{y};
-die "Missing -z!\n".$usage unless $args{z};
+die "Missing -f!\n".$usage unless $args{f};
+$path_to_file = $args{f};
 
-$pair = $args{p};
-$clientIn = $args{c};
-$tradeTypeIn = $args{t};
-$leverage = $args{v};
+# read trade file
+%dataHash = readTradeFile($path_to_file);
 
-$noOfEntries = $args{n};
-$highEntry = $args{h};
-$lowEntry = $args{l};
+# assign key pairs from hash to variables
+$pair = $dataHash{coinPair};
+$clientIn = $dataHash{client};
+$tradeTypeIn = $dataHash{tradeType};
+$leverage = $dataHash{leverage};
+$noOfEntries = $dataHash{numberOfEntries};
+$highEntry = $dataHash{highEntry};
+$lowEntry = $dataHash{lowEntry};
+$stopLoss = $dataHash{stopLoss};
+$noOfTargets = $dataHash{numberOfTargets};
+$lowTarget = $dataHash{lowTarget};
+$highTarget = $dataHash{highTarget};
 
-$stopLoss = $args{s};
-
-$noOfTargets = $args{x};
-$lowTarget = $args{y};
-$highTarget = $args{z};
+# remove white space from start and end of variables
+$pair =~ s/^\s+|\s+$//g;
+$clientIn =~ s/^\s+|\s+$//g;
+$tradeTypeIn =~ s/^\s+|\s+$//g;
+$leverage =~ s/^\s+|\s+$//g;
+$noOfEntries =~ s/^\s+|\s+$//g;
+$highEntry =~ s/^\s+|\s+$//g;
+$lowEntry =~ s/^\s+|\s+$//g;
+$stopLoss =~ s/^\s+|\s+$//g;
+$noOfTargets =~ s/^\s+|\s+$//g;
+$lowTarget =~ s/^\s+|\s+$//g;
+$highTarget =~ s/^\s+|\s+$//g;
 
 # number of entries should be greater than 2
 if ($noOfEntries <= 2) { die "\nerror: noOfEntries should be > 2\n".$usage; }

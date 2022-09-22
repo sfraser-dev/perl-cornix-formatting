@@ -1,0 +1,14 @@
+coinPair = BTC/USDT 
+client = 6
+tradeType = long
+leverage = -1
+
+numberOfEntries = 5
+highEntry = 18000
+lowEntry = 17800
+
+stopLoss = 16500
+
+numberOfTargets = 4
+lowTarget = 22000
+highTarget = 23000
