@@ -16,11 +16,12 @@ sub createFileName {
 	my $dateWee;
 	my $pairNoSlash;
 	$scriptName=~s/\.pl//;
+	#$date = strftime "%Y%m%d-%H%M%S", localtime;
 	$date = strftime "%Y%m%d", localtime;
 	$dateWee = substr($date, 2);
 	$pairNoSlash = $pair;
 	$pairNoSlash =~ s/\///g;
-	$txtFile = "$scriptName-$dateWee-$pairNoSlash-$tradeTypeIn\.txt";
+	$txtFile = "$dateWee-$pairNoSlash-$tradeTypeIn\.txt";
 	return $txtFile;
 }
 
