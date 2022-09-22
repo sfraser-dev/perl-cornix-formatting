@@ -115,6 +115,94 @@ sub createTemplate {
 	
 	return @template;
 }
+sub readTradeFile {
+	my %dataHash = 	( 'coinPair' => "xxx/usdt",
+					'client' => 999999,
+					'tradeType' => "xxx",
+					'leverage' => 999999,
+					'numberOfEntries' => 0,
+					'highEntry' => 0,
+					'lowEntry' => 0,
+					'stopLoss' => 0,
+					'numberOfTargets' => 0,
+					'lowTarget' => 0,
+					'highTarget' => 0
+				);
+	my $path_to_file = ".\\trade-setup.txt";
+	my @setupFromFile;
+	open my $info, $path_to_file or die "Could not open $path_to_file: $!";
+	while( my $line = <$info>) {   
+		if ($line =~ m/coinPair/) {
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{coinPair}=$val;
+		}
+		if ($line =~ m/client/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{client}=$val;
+		}
+		if ($line =~ m/tradeType/) {
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{tradeType}=$val;
+		}
+		if ($line =~ m/leverage/) {
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{leverage}=$val;
+		}
+		if ($line =~ m/numberOfEntries/) {
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{numberOfEntries}=$val;
+		}
+		if ($line =~ m/highEntry/) {
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{highEntry}=$val;
+		}
+		if ($line =~ m/lowEntry/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{lowEntry}=$val;
+		}
+		if ($line =~ m/stopLoss/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{stopLoss}=$val;
+		}
+		if ($line =~ m/numberOfTargets/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{numberOfTargets}=$val;
+		}
+		if ($line =~ m/lowTarget/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{lowTarget}=$val;
+		}
+		if ($line =~ m/highTarget/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			chomp($val);
+			$dataHash{highTarget}=$val;
+		}
+		push(@setupFromFile, $line);
+	}
+	close $info;
+	return %dataHash;
+}
 
 ########## Client: 
 my $client01 = "BM BinFuts (main)";
@@ -160,6 +248,19 @@ my $tradeIsALong;
 my @cornixTemplate;
 my $fileName;
 my $fh;
+my %dataHash;
+
+# read trade file
+%dataHash = readTradeFile();
+say"";
+say"";
+foreach my $key (keys %dataHash) {
+	my $val = $dataHash{$key};
+	print("$val\n");
+}
+say"";
+say"";
+
 my %args;
 GetOptions( \%args,
 			'n=s', # number of entries
@@ -186,14 +287,17 @@ die "Missing -x!\n".$usage unless $args{x};
 die "Missing -y!\n".$usage unless $args{y};
 die "Missing -z!\n".$usage unless $args{z};
 
-$noOfEntries = $args{n};
-$highEntry = $args{h};
-$lowEntry = $args{l};
-$stopLoss = $args{s};
 $pair = $args{p};
 $clientIn = $args{c};
 $tradeTypeIn = $args{t};
 $leverage = $args{v};
+
+$noOfEntries = $args{n};
+$highEntry = $args{h};
+$lowEntry = $args{l};
+
+$stopLoss = $args{s};
+
 $noOfTargets = $args{x};
 $lowTarget = $args{y};
 $highTarget = $args{z};
@@ -265,4 +369,5 @@ $fileName = createFileName($script_name, $pair, $tradeTypeIn);
 say $fileName;
 open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
 say $fh @cornixTemplate;
+
 	
