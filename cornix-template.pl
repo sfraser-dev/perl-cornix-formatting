@@ -6,21 +6,29 @@ use Getopt::Long; # for processing command line args
 use File::Basename;
 use POSIX qw(strftime);
 
-
 ########## subroutines
-sub Average {
-	my $n = scalar(@_); # how many args into function
-	my $sum=0;
-	foreach my $item (@_) {
-		$sum+=$item;
-	}
-	my $average = $sum/$n;
-	return $average;
+sub createFileName {
+	my $scriptName = $_[0];
+	my $pair = $_[1];
+	my $tradeTypeIn = $_[2];
+	my $txtFile;
+	my $date;
+	my $dateWee;
+	my $pairNoSlash;
+	$scriptName=~s/\.pl//;
+	$date = strftime "%Y%m%d", localtime;
+	$dateWee = substr($date, 2);
+	$pairNoSlash = $pair;
+	$pairNoSlash =~ s/\///g;
+	$txtFile = "$scriptName-$dateWee-$pairNoSlash-$tradeTypeIn\.log";
+	return $txtFile;
 }
+
 sub EvenDistribution {
 	my $noOfEntriesOrTargetsWanted=$_[0];
 	my $high=$_[1];
 	my $low=$_[2];
+	my @strArr;
 	# say "number of entries wanted: ".$noOfEntriesOrTargetsWanted;
 	# say "high entry: $high";
 	# say "low entry: $low";
@@ -64,8 +72,73 @@ sub EvenDistribution {
 		my $loc = $i+1;
 		my $val = sprintf("%.5f",$entryOrTargetValsArr[$i]);
 		my $perc = $percentageArr[$i];
-		print "$loc) $val - $perc%\n";
+		#print "$loc) $val - $perc%\n";
+		push(@strArr,"$loc) $val - $perc%\n");
 	}
+	return @strArr;
+}
+
+sub createTemplate {
+	my $pair = $_[0];
+	my $clientSelected = $_[1];
+	my $tradeTypeSelected = $_[2];
+	my $levCross = $_[3];
+	my $leverage = $_[4];
+	my $noOfEntries = $_[5];
+	my $highEntry = $_[6];
+	my $lowEntry = $_[7];
+	my $noOfTargets = $_[8];
+	my $highTarget = $_[9];
+	my $lowTarget = $_[10];
+	my $stopLoss = $_[11];
+	my $trailingConfig = $_[12];
+	my @template;
+	my @strArr;
+	my $strRead;
+	
+	push (@template, "$pair\n");
+	push (@template, "Client: $clientSelected\n");
+	push (@template, "Trade Type: $tradeTypeSelected\n");
+	if ($levCross >= 1) { push (@template, "Leverage: Cross ($leverage.0X)\n"); }
+	
+	push (@template,"\n");
+	push (@template,"Entry Targets:\n");
+	@strArr = EvenDistribution($noOfEntries,$highEntry,$lowEntry);
+	foreach $strRead (@strArr) {
+		push(@template,$strRead);
+	}
+	
+	push (@template,"\n");
+	push (@template,"Take-Profit Targets:\n");
+	@strArr = EvenDistribution($noOfTargets,$highTarget,$lowTarget);
+	foreach $strRead (@strArr) {
+		push(@template,$strRead);
+	}
+	
+	push (@template,"\n");
+	push (@template,"Stop Targets:\n1) $stopLoss - 100%\n");
+	
+	push (@template,"\n");
+	push (@template,"$trailingConfig\n");
+	
+	return @template;
+
+	
+	# say $pair;
+	# say "Client: $clientSelected";
+	# say "Trade Type: $tradeTypeSelected";
+	# if ($levCross >= 1) { say "Leverage: Cross ($leverage.0X)"; }
+	# say"";
+	# say "Entry Targets:";
+	# EvenDistribution($noOfEntries,$highEntry,$lowEntry);
+	# say"";
+	# say "Take-Profit Targets:";
+	# EvenDistribution($noOfTargets,$highTarget,$lowTarget);
+	# say"";
+	# say "Stop Targets:\n1) $stopLoss - 100%";
+	# say"";
+	# say $trailingConfig;
+	# say"";
 }
 
 ########## Client: 
@@ -91,15 +164,15 @@ my $trailingLine01 = "Trailing Configuration:";
 my $trailingLine02 = "Entry: Percentage (0.0%)";
 my $trailingLine03 = "Take-Profit: Percentage (0.0%)";
 my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
-
+my $trailingConfig = "$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n";
 
 my $script_name = basename($0);
-my $usage = sprintf("usage is: %s -n NoEntries -h highEntry -l lowEntry -p CoinPair -c Client -t TradeType -v Leverage",$script_name); 
-my $numberOfEntries;
+my $usage = sprintf("usage is: %s -n NoEntries -h highEntry -l lowEntry -s stopLoss -p CoinPair -c Client -t TradeType -v Leverage -x NoTargets -y lowTarget -z highTarget",$script_name); 
+my $noOfEntries;
 my $highEntry;
 my $lowEntry;
 my $stopLoss;
-my $numberOfTargets;
+my $noOfTargets;
 my $highTarget;
 my $lowTarget;
 my $pair;
@@ -109,6 +182,9 @@ my $tradeTypeIn;
 my $tradeTypeSelected;
 my $leverage;
 my $tradeIsALong;
+my @cornixTemplate;
+my $fileName;
+my $fh;
 my %args;
 GetOptions( \%args,
 			'n=s', # number of entries
@@ -135,7 +211,7 @@ die "Missing -x!\n".$usage unless $args{x};
 die "Missing -y!\n".$usage unless $args{y};
 die "Missing -z!\n".$usage unless $args{z};
 
-$numberOfEntries = $args{n};
+$noOfEntries = $args{n};
 $highEntry = $args{h};
 $lowEntry = $args{l};
 $stopLoss = $args{s};
@@ -143,12 +219,12 @@ $pair = $args{p};
 $clientIn = $args{c};
 $tradeTypeIn = $args{t};
 $leverage = $args{v};
-$numberOfTargets = $args{x};
+$noOfTargets = $args{x};
 $lowTarget = $args{y};
 $highTarget = $args{z};
 
 # number of entries should be greater than 2
-if ($numberOfEntries <= 2) { die "\nerror: numberOfEntries should be > 2\n".$usage; }
+if ($noOfEntries <= 2) { die "\nerror: noOfEntries should be > 2\n".$usage; }
 # make sure high entry is above the low entry
 if ($highEntry <= $lowEntry) { die "\nerror: highEntry is <= lowEntry\n".$usage; }
 # make sure high target is above the low target
@@ -203,43 +279,15 @@ if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
 }
 
 # print the cornix template
-say"";
-say"";
-say"";
-say $pair;
-say "Client: $clientSelected";
-say "Trade Type: $tradeTypeSelected";
-if ($levCross >= 1) { say "Leverage: Cross ($leverage.0X)"; }
-say"";
-say "Entry Targets:";
-EvenDistribution($numberOfEntries,$highEntry,$lowEntry);
-say"";
-say "Take-Profit Targets:";
-EvenDistribution($numberOfTargets,$highTarget,$lowTarget);
-say"";
-say "Stop Targets:\n1) $stopLoss - 100%";
-say"";
-say $trailingLine01;
-say $trailingLine02;
-say $trailingLine03;
-say $trailingLine04;
-say"";
-say"";
+@cornixTemplate = createTemplate(		$pair,$clientSelected,$tradeTypeSelected,$levCross,
+								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
+								$highTarget,$lowTarget,$stopLoss,$trailingConfig);
 
-# creating a filename
-my $perlFilenameBase;
-my $logFile;
-my $date;
-my $dateWee;
-my $pairNoSlash;
-$perlFilenameBase=basename($0);
-$perlFilenameBase=~s/\.pl//;
-say "$logFile";
-$date = strftime "%Y%m%d", localtime;
-$dateWee = substr($date, 2);
-$pairNoSlash = $pair;
-$pairNoSlash =~ s/\///g;
-$logFile = "$perlFilenameBase-$dateWee-$pairNoSlash-$tradeTypeIn\.log";
-print $logFile;
-
+# print to screen
+say @cornixTemplate;
+# print to file
+$fileName = createFileName($script_name, $pair, $tradeTypeIn);
+say $fileName;
+open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
+say $fh @cornixTemplate;
 	
