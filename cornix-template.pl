@@ -29,34 +29,27 @@ sub EvenDistribution {
 	my $high=$_[1];
 	my $low=$_[2];
 	my @strArr;
-	# say "number of entries wanted: ".$noOfEntriesOrTargetsWanted;
-	# say "high entry: $high";
-	# say "low entry: $low";
 	
 	# get the entry values 
 	my $highLowDiff = $high - $low;
 	my $entryIncrement = $highLowDiff / ($noOfEntriesOrTargetsWanted-1);
-	# say "The difference between high and low entries: $highLowDiff";
-	# say "The increment is: $entryIncrement";
+	
 	my @entryOrTargetValsArr;
 	for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 		push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
 	}
-	#print "entryOrTargetValsArr: @entryOrTargetValsArr\n";
 	
 	# get the percentage values 
 	my $percentageIncrement = 100/$noOfEntriesOrTargetsWanted;
 	# floor the percentage values to integers
 	my $percentIncrementBase = int($percentageIncrement);
-	#my $percentIncrementDecimal = sprintf("%.2f",$percentageIncrement-$percentIncrementBase);
 	my @percentageArr;
 	my $sum=0;
 	for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 		push (@percentageArr, $percentIncrementBase);
 		$sum+=$percentIncrementBase;
 	}
-	#print "percentageArr: @percentageArr\n";
-	#print "sum: $sum\n";
+	
 	# brute force the percentages to have a total of 100
 	if ($sum<100){
 		my $toAdd=100-$sum;
@@ -65,8 +58,7 @@ sub EvenDistribution {
 			$percentageArr[$i]+=1;
 		}
 	}
-	#print "entryOrTargetValsArr: @entryOrTargetValsArr\n";
-	#print "percentageArr: @percentageArr\n";
+	
 	# print out the entries / targets and their percentage allocations
 	for my $i (0 .. $#entryOrTargetValsArr){
 		my $loc = $i+1;
@@ -122,23 +114,6 @@ sub createTemplate {
 	push (@template,"$trailingConfig\n");
 	
 	return @template;
-
-	
-	# say $pair;
-	# say "Client: $clientSelected";
-	# say "Trade Type: $tradeTypeSelected";
-	# if ($levCross >= 1) { say "Leverage: Cross ($leverage.0X)"; }
-	# say"";
-	# say "Entry Targets:";
-	# EvenDistribution($noOfEntries,$highEntry,$lowEntry);
-	# say"";
-	# say "Take-Profit Targets:";
-	# EvenDistribution($noOfTargets,$highTarget,$lowTarget);
-	# say"";
-	# say "Stop Targets:\n1) $stopLoss - 100%";
-	# say"";
-	# say $trailingConfig;
-	# say"";
 }
 
 ########## Client: 
