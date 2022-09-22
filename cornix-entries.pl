@@ -84,7 +84,7 @@ my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target(1)";
 
 
 my $script_name = basename($0);
-my $usage = sprintf("usage is: %s -n NoEntries -h HighEntry -l LowEntry -p CoinPair -c Client -t TradeType -v Leverage",$script_name); 
+my $usage = sprintf("usage is: %s -n NoEntries -h highEntry -l lowEntry -p CoinPair -c Client -t TradeType -v Leverage",$script_name); 
 my $numberOfEntries;
 my $highEntry;
 my $lowEntry;
@@ -94,6 +94,7 @@ my $clientSelected;
 my $tradeTypeIn;
 my $tradeTypeSelected;
 my $leverage;
+my $tradeIsALong;
 my %args;
 GetOptions( \%args,
 			'n=s', # number of entries
@@ -105,7 +106,7 @@ GetOptions( \%args,
 			'v=s'  # leverage
           ) or die "Invalid command line arguments!";
 die "Missing -n!\n".$usage unless $args{n};
-die "Missing -h!\n".$usage unless $args{h};
+die "Missing -f!\n".$usage unless $args{h};
 die "Missing -l!\n".$usage unless $args{l};
 die "Missing -p!\n".$usage unless $args{p};
 die "Missing -c!\n".$usage unless $args{c};
@@ -120,8 +121,11 @@ $clientIn = $args{c};
 $tradeTypeIn = $args{t};
 $leverage = $args{v};
 
+# number of entries should be greater than 2
 if ($numberOfEntries <= 2) { die "\nerror: numberOfEntries should be > 2\n".$usage; }
+# make sure high entry is above the low entry
 if ($highEntry <= $lowEntry) { die "\nerror: highEntry is <= lowEntry\n".$usage; }
+# client / exchange to use
 if ($clientIn == 1) {
 	$clientSelected = $client01;
 } elsif ($clientIn == 2) {
@@ -147,18 +151,21 @@ if ($clientIn == 1) {
 } else {
 	die "error: unknown client number";
 }
+# trade type (long or short)
+if ($tradeTypeIn eq "long") {
+	$tradeTypeSelected = $tradeTypeLong;
+	$tradeIsALong = 1;
+} elsif ($tradeTypeIn eq "short") {
+	$tradeTypeSelected = $tradeTypeShort;
+	$tradeIsALong = 0;
+} else {
+	die "error: TradeType must be 'long' or 'short'";
+}
 # cannot read "0" from command line, use "-1" for no leverage
 if (($leverage<-1) or ($leverage >20)) { 
 	die "error: incorrect leverage (-1 <= lev <=20)";
 } else {
 	$levCross  = $leverage;
-}
-if ($tradeTypeIn eq "long") {
-	$tradeTypeSelected = $tradeTypeLong;
-} elsif ($tradeTypeIn eq "short") {
-	$tradeTypeSelected = $tradeTypeShort;
-} else {
-	die "error: TradeType must be 'long' or 'short'";
 }
 
 say"";

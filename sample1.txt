@@ -1,0 +1,23 @@
+BTC/USDT
+Client: SF BinSpot (main)
+Trade Type: Regular (Long)
+
+Entry Targets:
+1) 18000 - 34%
+2) 17900 - 33%
+3) 17800 - 33%
+
+Take-Profit Targets:
+1) 22000 - 75.0%
+2) 22500 - 20.0%
+3) 23000 - 5.0%
+
+Stop Targets:
+1) 17000 - 100.0%
+
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+  Trigger: Target (1)
