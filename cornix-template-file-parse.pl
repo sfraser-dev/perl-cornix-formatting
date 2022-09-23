@@ -75,16 +75,15 @@ sub createTemplate {
 	my $pair = $_[0];
 	my $clientSelected = $_[1];
 	my $tradeTypeSelected = $_[2];
-	my $levCross = $_[3];
-	my $leverage = $_[4];
-	my $noOfEntries = $_[5];
-	my $highEntry = $_[6];
-	my $lowEntry = $_[7];
-	my $noOfTargets = $_[8];
-	my $highTarget = $_[9];
-	my $lowTarget = $_[10];
-	my $stopLoss = $_[11];
-	my $trailingConfig = $_[12];
+	my $leverage = $_[3];
+	my $noOfEntries = $_[4];
+	my $highEntry = $_[5];
+	my $lowEntry = $_[6];
+	my $noOfTargets = $_[7];
+	my $highTarget = $_[8];
+	my $lowTarget = $_[9];
+	my $stopLoss = $_[10];
+	my $trailingConfig = $_[11];
 	my @template;
 	my @strArr;
 	my $strRead;
@@ -92,7 +91,7 @@ sub createTemplate {
 	push (@template, "$pair\n");
 	push (@template, "Client: $clientSelected\n");
 	push (@template, "Trade Type: $tradeTypeSelected\n");
-	if ($levCross >= 1) { push (@template, "Leverage: Cross ($leverage.0X)\n"); }
+	if ($leverage >= 1) { push (@template, "Leverage: Cross ($leverage.0X)\n"); }
 	
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
@@ -219,8 +218,8 @@ my $client11 = "SF KucoinSpot (main)";
 my $tradeTypeLong = "Regular (Long)";
 my $tradeTypeShort = "Regular (Short)";
 ########## Leverage: 
-#my $levIso = "Isolated"; ## Leverage: Isolated (4.0X)!!!!!
-my $levCross = "Cross";  ## Leverage: Cross (4.0X)!!!!!
+#my $levIsoStr = "Isolated"; ## Leverage: Isolated (4.0X)!!!!!
+my $levCrossStr = "Cross";  ## Leverage: Cross (4.0X)!!!!!
 ########## Trailing: 
 my $trailingLine01 = "Trailing Configuration:";
 my $trailingLine02 = "Entry: Percentage (0.0%)";
@@ -250,6 +249,7 @@ my $fh;
 my $path_to_file;
 my %dataHash;
 my %args;
+my @cornixFreeTextSimpleTemplate;
 GetOptions( \%args,
 			'f=s' # filename
           ) or die "Invalid command line arguments!";
@@ -330,8 +330,6 @@ if ($tradeTypeIn eq "long") {
 # leverage: cannot read "0" from command line, use "-1" for no leverage
 if (($leverage<-1) or ($leverage >20)) { 
 	die "error: incorrect leverage (-1 <= lev <=20)";
-} else {
-	$levCross  = $leverage;
 }
 # check stop-loss value makes sense
 if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
@@ -340,8 +338,10 @@ if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
 	die "error: wrong stop-loss placement for a short";
 }
 
+#@cornixFreeTextSimpleTemplate = cornixFreeTextSimple($pair, $leverage)
+
 # create the cornix template as an array of strings
-@cornixTemplate = createTemplate(		$pair,$clientSelected,$tradeTypeSelected,$levCross,
+@cornixTemplate = createTemplate(		$pair,$clientSelected,$tradeTypeSelected,
 								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
 								$highTarget,$lowTarget,$stopLoss,$trailingConfig);
 
