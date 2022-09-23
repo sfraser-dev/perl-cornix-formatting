@@ -1,14 +1,20 @@
+# cornix free text max entries and targets is 10
+# cornix free text only allows 1 SL
+# if only 1 entry/target, the "high" value is used
+
+
 coinPair = BTC/USDT 
 client = 6
 tradeType = long
-leverage = 3
+leverage = -1
 
-numberOfEntries = 3
+
+numberOfEntries = 1
 highEntry = 18000
 lowEntry = 17500
 
 stopLoss = 16000
 
-numberOfTargets = 5
+numberOfTargets = 1
 lowTarget = 22000
 highTarget = 23000

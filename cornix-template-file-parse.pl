@@ -7,7 +7,7 @@ use File::Basename;
 use POSIX qw(strftime);
 
 ########## subroutines
-sub createFileName {
+sub createOutputFileName {
 	my $scriptName = $_[0];
 	my $pair = $_[1];
 	my $tradeTypeIn = $_[2];
@@ -31,6 +31,11 @@ sub EvenDistribution {
 	my $low=$_[2];
 	my @strArr;
 	
+	# deal with only 1 entry (use "high" values, not the "low" values)
+	if ($noOfEntriesOrTargetsWanted == 1) {
+		push(@strArr,"1) $high - 100%\n");
+		return @strArr;
+	}
 	# get the entry values 
 	my $highLowDiff = $high - $low;
 	my $entryIncrement = $highLowDiff / ($noOfEntriesOrTargetsWanted-1);
@@ -71,7 +76,7 @@ sub EvenDistribution {
 	return @strArr;
 }
 
-sub createTemplate {
+sub createAdvancedTemplate {
 	my $pair = $_[0];
 	my $clientSelected = $_[1];
 	my $tradeTypeSelected = $_[2];
@@ -88,6 +93,7 @@ sub createTemplate {
 	my @strArr;
 	my $strRead;
 	
+	push (@template, "########################### advanced template\n");
 	push (@template, "$pair\n");
 	push (@template, "Client: $clientSelected\n");
 	push (@template, "Trade Type: $tradeTypeSelected\n");
@@ -116,6 +122,7 @@ sub createTemplate {
 	return @template;
 }
 sub readTradeFile {
+	# Cornix: max entries 10, only 1 SL allowed, max targets 10
 	my $path_to_file = $_[0];
 	my %dataHash = 	( 'coinPair' => "xxx/usdt",
 					'client' => 999999,
@@ -130,7 +137,12 @@ sub readTradeFile {
 					'highTarget' => 0
 				);
 	open my $info, $path_to_file or die "Could not open $path_to_file: $!";
-	while( my $line = <$info>) {   
+	while( my $line = <$info>) { 
+		my $temp = $line;
+		$temp =~ s/^\s+|\s+$//g;	# remove leading and trailing whitespace
+		if ($temp =~ /^#/) {		# is first character a '#' (ie: a comment)?
+			next;
+		}
 		if ($line =~ m/coinPair/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
@@ -202,6 +214,27 @@ sub readTradeFile {
 	return %dataHash;
 }
 
+sub createCornixFreeTextSimpleTemplate {
+	my $pair=$_[0];
+	my $leverage=$_[1];
+	my $highEntry=$_[2];
+	my $lowEntry=$_[3];
+	my $highTarget=$_[4];
+	my $lowTarget=$_[5];
+	my $stopLoss=$_[6];
+	my @simpleTemplate; 
+
+	push (@simpleTemplate, "########################### simple template\n");
+	push(@simpleTemplate,"$pair\n");
+	if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage cross %sx\n",$leverage)); }
+	push(@simpleTemplate, "enter $highEntry $lowEntry\n");
+	push(@simpleTemplate, "stop $stopLoss\n");
+	push(@simpleTemplate, "targets $lowTarget $highTarget\n");
+	
+	return @simpleTemplate;
+}
+
+
 ########## Client: 
 my $client01 = "BM BinFuts (main)";
 my $client02 = "BM BinSpot (main)";
@@ -243,7 +276,7 @@ my $tradeTypeIn;
 my $tradeTypeSelected;
 my $leverage;
 my $tradeIsALong;
-my @cornixTemplate;
+my @cornixTemplateAdvanced;
 my $fileName;
 my $fh;
 my $path_to_file;
@@ -285,8 +318,10 @@ $noOfTargets =~ s/^\s+|\s+$//g;
 $lowTarget =~ s/^\s+|\s+$//g;
 $highTarget =~ s/^\s+|\s+$//g;
 
-# number of entries should be greater than 2
-if ($noOfEntries <= 2) { die "\nerror: noOfEntries should be > 2\n".$usage; }
+# number of entries should be between 1 and 10 (Cornix free text maximum is 10)
+if (($noOfEntries<1) or ($noOfEntries>10)) { die "\nerror: noOfEntries should be 10 or less, \n".$usage; }
+# number of targets should be between 1 and 10 (Cornix free text maximum is 10)
+if (($noOfTargets<1) or ($noOfTargets>10)) { die "\nerror: noOfTargets should be 10 or less, \n".$usage; }
 # make sure high entry is above the low entry
 if ($highEntry <= $lowEntry) { die "\nerror: highEntry is <= lowEntry\n".$usage; }
 # make sure high target is above the low target
@@ -338,18 +373,22 @@ if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
 	die "error: wrong stop-loss placement for a short";
 }
 
-#@cornixFreeTextSimpleTemplate = cornixFreeTextSimple($pair, $leverage)
+# old and simple way of using Cornix Free Text, generate a version of this too as well as the complex template
+@cornixFreeTextSimpleTemplate = createCornixFreeTextSimpleTemplate($pair,$leverage,$highEntry,$lowEntry,$highTarget,$lowTarget,$stopLoss);
+
 
 # create the cornix template as an array of strings
-@cornixTemplate = createTemplate(		$pair,$clientSelected,$tradeTypeSelected,
+@cornixTemplateAdvanced = createAdvancedTemplate(		$pair,$clientSelected,$tradeTypeSelected,
 								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
 								$highTarget,$lowTarget,$stopLoss,$trailingConfig);
 
-# print template to screen
-say @cornixTemplate;
+# print templates to screen
+say @cornixFreeTextSimpleTemplate;
+say @cornixTemplateAdvanced;
 # print template to file
-$fileName = createFileName($script_name, $pair, $tradeTypeIn);
+$fileName = createOutputFileName($script_name, $pair, $tradeTypeIn);
 open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
-say $fh @cornixTemplate;
+say $fh @cornixFreeTextSimpleTemplate;
+say $fh @cornixTemplateAdvanced;
 
 	
