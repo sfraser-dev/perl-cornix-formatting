@@ -9,12 +9,12 @@ tradeType = long
 leverage = -1
 
 
-numberOfEntries = 1
+numberOfEntries = 6
 highEntry = 18000
 lowEntry = 17500
 
 stopLoss = 16000
 
-numberOfTargets = 1
-lowTarget = 22000
+numberOfTargets = 4
 highTarget = 23000
+lowTarget = 22000

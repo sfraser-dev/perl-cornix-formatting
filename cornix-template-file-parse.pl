@@ -26,9 +26,11 @@ sub createOutputFileName {
 }
 
 sub EvenDistribution {
-	my $noOfEntriesOrTargetsWanted=$_[0];
-	my $high=$_[1];
-	my $low=$_[2];
+	my $entriesOrTargets=$_[0];
+	my $noOfEntriesOrTargetsWanted=$_[1];
+	my $high=$_[2];
+	my $low=$_[3];
+	my $tradeTypeIn=$_[4];
 	my @strArr;
 	
 	# deal with only 1 entry (use "high" values, not the "low" values)
@@ -36,13 +38,48 @@ sub EvenDistribution {
 		push(@strArr,"1) $high - 100%\n");
 		return @strArr;
 	}
-	# get the entry values 
+	
+	# calc the entry/target values based on high, low and numberEntries given
 	my $highLowDiff = $high - $low;
 	my $entryIncrement = $highLowDiff / ($noOfEntriesOrTargetsWanted-1);
-	
 	my @entryOrTargetValsArr;
-	for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
-		push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
+	# put entries or targets in the correct order based on whether longing or shorting
+	if ($entriesOrTargets eq "entries") {
+		# long entries
+		if ($tradeTypeIn eq "long") {
+			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
+				push (@entryOrTargetValsArr, $high-($entryIncrement*$i));
+			}
+		}
+		# short entries
+		elsif ($tradeTypeIn eq "short") {
+			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
+				push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
+			}
+		} 
+		else {
+			die "error: need to declare 'long' or 'short' when generating entries";
+		}
+	}
+	elsif ($entriesOrTargets eq "targets") {
+		# long targets
+		if ($tradeTypeIn eq "long") {
+			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
+				push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
+			}
+		}
+		# short targets
+		elsif ($tradeTypeIn eq "short") {
+			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
+				push (@entryOrTargetValsArr, $high-($entryIncrement*$i));
+			}
+		} 
+		else {
+			die "error: need to declare 'long' or 'short' when generating targets";
+		}
+	}
+	else {
+		die "error: need to declare if generating entries or targets";
 	}
 	
 	# get the percentage values 
@@ -70,16 +107,57 @@ sub EvenDistribution {
 		my $loc = $i+1;
 		my $val = sprintf("%.5f",$entryOrTargetValsArr[$i]);
 		my $perc = $percentageArr[$i];
-		#print "$loc) $val - $perc%\n";
 		push(@strArr,"$loc) $val - $perc%\n");
 	}
+	
 	return @strArr;
+}
+
+sub riskSofteningMultiplier {
+	# assumes advanced template entries are in the correct order (whether long or shorting)
+	my @strArr=@{$_[0]}; 					# dereference the passed array
+	my $stopLoss=$_[1];
+	my @splitter;
+	my $entryPrice;
+	my $firstEntryPrice = 0;
+	my $percentage;
+	my $arbitraryPositionValue = 10000;		# copy how calculated on spreadsheet
+	my $amountSpentAtThisEntry;
+	my $noCoinsObtainedAtThisEntry;
+	my $totalCoinsObtained=0;
+	my $riskPercentageBasedOnEntry1;
+	my $avgEntryPrice;
+	my $riskPercentageBasedOnAvgEntry;
+	my $riskSoftMult;
+	
+	# Assigns arbitary position value ($10000). Based on this, calc number of coins
+	# bought at each entry point (based on target entry price and assigned percentage)
+	for my $i (0 .. $#strArr) {
+		# get the values and percentages from the Cornix Entry Tragets: string array 
+		@splitter=split / /, $strArr[$i];	# split line using spaces, [0]=1), [1]=value, [2]=hyphen, [3]=percentage
+		$entryPrice = $splitter[1];
+		if ($i == 0) { $firstEntryPrice = $entryPrice; }
+		$percentage = ($splitter[3]);
+		$percentage =~ s/%//g;				# remove percentage sign
+		$percentage /= 100;					# percenatge as decimal
+		
+		# calculate the risk softening multiplier
+		$amountSpentAtThisEntry = $arbitraryPositionValue * $percentage;
+		$noCoinsObtainedAtThisEntry = $amountSpentAtThisEntry / $entryPrice;
+		$totalCoinsObtained += $noCoinsObtainedAtThisEntry;		
+	}
+	$riskPercentageBasedOnEntry1 = (abs($firstEntryPrice-$stopLoss))/$firstEntryPrice;
+	$avgEntryPrice = $arbitraryPositionValue / $totalCoinsObtained;
+	$riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;
+	$riskSoftMult = $riskPercentageBasedOnAvgEntry / $riskPercentageBasedOnEntry1;
+	
+	return $riskSoftMult;
 }
 
 sub createAdvancedTemplate {
 	my $pair = $_[0];
 	my $clientSelected = $_[1];
-	my $tradeTypeSelected = $_[2];
+	my $tradeTypeSelectedCornixStr = $_[2];
 	my $leverage = $_[3];
 	my $noOfEntries = $_[4];
 	my $highEntry = $_[5];
@@ -89,26 +167,29 @@ sub createAdvancedTemplate {
 	my $lowTarget = $_[9];
 	my $stopLoss = $_[10];
 	my $trailingConfig = $_[11];
+	my $tradeTypeIn = $_[12];
 	my @template;
 	my @strArr;
 	my $strRead;
+	my $riskSoftMult;
 	
 	push (@template, "########################### advanced template\n");
 	push (@template, "$pair\n");
 	push (@template, "Client: $clientSelected\n");
-	push (@template, "Trade Type: $tradeTypeSelected\n");
+	push (@template, "Trade Type: $tradeTypeSelectedCornixStr\n");
 	if ($leverage >= 1) { push (@template, "Leverage: Cross ($leverage.0X)\n"); }
 	
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
-	@strArr = EvenDistribution($noOfEntries,$highEntry,$lowEntry);
+	@strArr = EvenDistribution("entries",$noOfEntries,$highEntry,$lowEntry,$tradeTypeIn);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
-	
+	$riskSoftMult = riskSofteningMultiplier(\@strArr, $stopLoss); # passing array as reference
+
 	push (@template,"\n");
 	push (@template,"Take-Profit Targets:\n");
-	@strArr = EvenDistribution($noOfTargets,$highTarget,$lowTarget);
+	@strArr = EvenDistribution("targets",$noOfTargets,$highTarget,$lowTarget,$tradeTypeIn);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -118,6 +199,8 @@ sub createAdvancedTemplate {
 	
 	push (@template,"\n");
 	push (@template,"$trailingConfig\n");
+	
+	push (@template, "########################### risk softening multiplier\n$riskSoftMult\n");
 	
 	return @template;
 }
@@ -248,8 +331,8 @@ my $client09 = "SF FtxFuturesPerp (main)";
 my $client10 = "SF FtxFSpot (main)";
 my $client11 = "SF KucoinSpot (main)";
 ########## Trade Type: 
-my $tradeTypeLong = "Regular (Long)";
-my $tradeTypeShort = "Regular (Short)";
+my $tradeTypeLongStr = "Regular (Long)";
+my $tradeTypeShortStr = "Regular (Short)";
 ########## Leverage: 
 #my $levIsoStr = "Isolated"; ## Leverage: Isolated (4.0X)!!!!!
 my $levCrossStr = "Cross";  ## Leverage: Cross (4.0X)!!!!!
@@ -273,7 +356,7 @@ my $pair;
 my $clientIn;
 my $clientSelected;
 my $tradeTypeIn;
-my $tradeTypeSelected;
+my $tradeTypeSelectedCornixStr;
 my $leverage;
 my $tradeIsALong;
 my @cornixTemplateAdvanced;
@@ -354,10 +437,10 @@ if ($clientIn == 1) {
 }
 # trade type (long or short)
 if ($tradeTypeIn eq "long") {
-	$tradeTypeSelected = $tradeTypeLong;
+	$tradeTypeSelectedCornixStr = $tradeTypeLongStr;
 	$tradeIsALong = 1;
 } elsif ($tradeTypeIn eq "short") {
-	$tradeTypeSelected = $tradeTypeShort;
+	$tradeTypeSelectedCornixStr = $tradeTypeShortStr;
 	$tradeIsALong = 0;
 } else {
 	die "error: TradeType must be 'long' or 'short'";
@@ -378,9 +461,9 @@ if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
 
 
 # create the cornix template as an array of strings
-@cornixTemplateAdvanced = createAdvancedTemplate(		$pair,$clientSelected,$tradeTypeSelected,
+@cornixTemplateAdvanced = createAdvancedTemplate(		$pair,$clientSelected,$tradeTypeSelectedCornixStr,
 								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
-								$highTarget,$lowTarget,$stopLoss,$trailingConfig);
+								$highTarget,$lowTarget,$stopLoss,$trailingConfig,$tradeTypeIn);
 
 # print templates to screen
 say @cornixFreeTextSimpleTemplate;
