@@ -5,23 +5,24 @@
 # to do:
 # -- HeavyWeightingAtEntryOrStoploss for targets too (just done entries for now)
 # -- no single TP, issue with cornix and changing it's ratio (95% and 5% on similar value)?
-# -- different weightings (exponential (50/25/12/6/3), balanced-in-twos (10/10/15/15/25/25)
+# -- different weightings: (exponential (50/25/12/6/3), balanced-in-twos (10/10/15/15/25/25)
 # -- add options: -c chart, -w weightingFactor, -h heavySideEntryOrSL
-# -- remove need to type long from here (can tell if long or short from entry/SL/TP)
+# -- remove need to type long or short from here (can tell if long or short from entry/SL/TP)
+# -- blacksphere/loma fixed risk fluid position, calc compound position size if not all entries hit
 
 
-coinPair = BTC/USDT 
+coinPair = BTC/BUSD
 client = 6
 tradeType = long
 leverage = -1
 
 
 numberOfEntries = 10
-highEntry = 18000
-lowEntry = 17500
+highEntry = 19272
+lowEntry = 19055
 
-stopLoss = 16000
+stopLoss = 18922
 
-numberOfTargets = 4
-highTarget = 23000
-lowTarget = 22000
+numberOfTargets = 1
+highTarget = 20050
+lowTarget = 20000

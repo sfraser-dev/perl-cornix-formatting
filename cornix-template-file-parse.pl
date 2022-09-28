@@ -18,7 +18,8 @@ sub createOutputFileName {
 	my $pairNoSlash;
 	$scriptName=~s/\.pl//;
 	#$date = strftime "%Y%m%d-%H%M%S", localtime;
-	$date = strftime "%Y%m%d", localtime;
+	$date = strftime "%Y%m%d-%H%M", localtime;
+	#$date = strftime "%Y%m%d", localtime;
 	$dateWee = substr($date, 2);
 	$pairNoSlash = $pair;
 	$pairNoSlash =~ s/\///g;
