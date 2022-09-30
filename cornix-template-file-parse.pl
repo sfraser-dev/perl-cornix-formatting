@@ -238,21 +238,15 @@ sub HeavyWeightingAtEntryOrStoploss {
 	### index pairs
 	# 0,4 (0...length-1)
 	# 1,3 (1...length-2)
-	say"weightingFactorCommandLine=$weightingFactorCommandLine";
-	my $isEntryHeavyWeighting = 0;	# entry or stop-loss heavy weighting
+	#
+	# positive weightingFactorCommandLine values weight towards the stop-loss
+	# negative weightingFactorCommandLine values weight towards the stop-loss
 	for(my $x = 0; $x < (int($arrLengthPerc/2)); $x++){
 		for(my $i = 0; $i < (int($arrLengthPerc/2))-$x; $i++){
 			# my $ii = $indexPairs[$i]->key;
 			my $p = $indexPairs[$i]->value;
-			# heavy weighting towards entry
-			if ($isEntryHeavyWeighting == 1) {
-				$percentages[$i]+=$weightingFactorCommandLine;
-				$percentages[$p]-=$weightingFactorCommandLine;
-			# heavy weighting towards stop-loss
-			} elsif ($isEntryHeavyWeighting == 0) {
-				$percentages[$i]-=$weightingFactorCommandLine;
-				$percentages[$p]+=$weightingFactorCommandLine;	
-			} else { die "error: isEntryHeavyWeighting incorrectly set"; }
+			$percentages[$i]-=$weightingFactorCommandLine;
+			$percentages[$p]+=$weightingFactorCommandLine;	
 		}
 	}
 
@@ -496,11 +490,14 @@ GetOptions( \%args,
 			'file=s', 	# filename
 			'wf=s'		# weighting factor (override config file weighting factor)
           ) or die "Invalid command line arguments!";
-die "Missing --file!\n".$usage unless $args{file};
-$weightingFactorCommandLine=0 unless $args{wf};
 $pathToFileCommandLine = $args{file};
 $weightingFactorCommandLine = $args{wf};
-
+unless ($args{file}) {
+	die "Missing --file!\n".$usage;
+}
+unless ($args{wf}) {
+	$weightingFactorCommandLine=0;
+}
 # read trade file
 %dataHash = readTradeConfigFile($pathToFileCommandLine);
 
