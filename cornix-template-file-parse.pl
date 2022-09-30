@@ -271,29 +271,40 @@ sub HeavyWeightingAtEntryOrStoploss {
 sub createAdvancedTemplate {
 	my $pair = $_[0];
 	my $clientSelected = $_[1];
-	my $tradeTypeSelectedCornixStr = $_[2];
-	my $leverage = $_[3];
-	my $noOfEntries = $_[4];
-	my $highEntry = $_[5];
-	my $lowEntry = $_[6];
-	my $noOfTargets = $_[7];
-	my $highTarget = $_[8];
-	my $lowTarget = $_[9];
-	my $stopLoss = $_[10];
-	my $trailingConfig = $_[11];
-	my $isTradeALong = $_[12];
-	my $weightingFactorCommandLine = $_[13];
+	my $leverage = $_[2];
+	my $noOfEntries = $_[3];
+	my $highEntry = $_[4];
+	my $lowEntry = $_[5];
+	my $noOfTargets = $_[6];
+	my $highTarget = $_[7];
+	my $lowTarget = $_[8];
+	my $stopLoss = $_[9];
+	my $isTradeALong = $_[10];
+	my $weightingFactorCommandLine = $_[11];
 	my @template;
 	my @strArr;
 	my $strRead;
 	my $riskSoftMult;
-	
+		
 	push (@template, "########################### advanced template\n");
-	push (@template, "$pair\n");
-	push (@template, "Client: $clientSelected\n");
-	push (@template, "Trade Type: $tradeTypeSelectedCornixStr\n");
-	if ($leverage >= 1) { push (@template, "Leverage: Cross ($leverage.0X)\n"); }
 	
+	# coin pairs
+	push (@template, "$pair\n");
+	
+	# Cornix client
+	push (@template, "Client: $clientSelected\n");
+	
+	# long or short trade
+	if ($isTradeALong==1) 		{ push (@template, "Trade Type: Regular (Long)\n"); }
+	elsif ($isTradeALong==0) 	{ push (@template, "Trade Type: Regular (Short)\n"); }
+	else 						{ die "error: cannot determine if trade is a long or a short for writing template"; }
+	
+	# amount of leverage to use (if any at all, "-1" means no leverage)
+	#if ($leverage >= 1) 		{ push (@template, "Leverage: Isolated ($leverage.0X)\n"); }
+	if ($leverage >= 1) 		{ push (@template, "Leverage: Cross ($leverage.0X)\n"); }
+	else 						{ die "error: cannot determine leverage for writing template"; }
+	
+	# entry targets
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
 	#@strArr = EvenDistribution("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong);
@@ -303,6 +314,7 @@ sub createAdvancedTemplate {
 	}
 	$riskSoftMult = riskSofteningMultiplier(\@strArr, $stopLoss); # passing array as reference
 
+	# take profit targets
 	push (@template,"\n");
 	push (@template,"Take-Profit Targets:\n");
 	@strArr = EvenDistribution("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong);
@@ -311,11 +323,17 @@ sub createAdvancedTemplate {
 		push(@template,$strRead);
 	}
 	
+	# stop-loss
 	push (@template,"\n");
 	push (@template,"Stop Targets:\n1) $stopLoss - 100%\n");
-	
 	push (@template,"\n");
-	push (@template,"$trailingConfig\n");
+	
+	# trailing configuration
+	my $trailingLine01 = "Trailing Configuration:";
+	my $trailingLine02 = "Entry: Percentage (0.0%)";
+	my $trailingLine03 = "Take-Profit: Percentage (0.0%)";
+	my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
+	push (@template,"$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n\n");
 	
 	push (@template, "########################### risk softening multiplier\n$riskSoftMult\n");
 	
@@ -348,61 +366,61 @@ sub readTradeConfigFile {
 		if ($line =~ m/coinPair/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{coinPair}=$val;
 		}
 		if ($line =~ m/client/) { 
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{client}=$val;
 		}
 		if ($line =~ m/leverage/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{leverage}=$val;
 		}
 		if ($line =~ m/numberOfEntries/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{numberOfEntries}=$val;
 		}
 		if ($line =~ m/highEntry/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{highEntry}=$val;
 		}
 		if ($line =~ m/lowEntry/) { 
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{lowEntry}=$val;
 		}
 		if ($line =~ m/stopLoss/) { 
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{stopLoss}=$val;
 		}
 		if ($line =~ m/numberOfTargets/) { 
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{numberOfTargets}=$val;
 		}
 		if ($line =~ m/lowTarget/) { 
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{lowTarget}=$val;
 		}
 		if ($line =~ m/highTarget/) { 
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
-			chomp($val);
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{highTarget}=$val;
 		}
 	}
@@ -424,6 +442,7 @@ sub createCornixFreeTextSimpleTemplate {
 
 	push (@simpleTemplate, "########################### simple template\n");
 	push(@simpleTemplate,"$pair\n");
+	#if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage isolated %sx\n",$leverage)); }
 	if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage cross %sx\n",$leverage)); }
 	push(@simpleTemplate, "enter $highEntry $lowEntry\n");
 	push(@simpleTemplate, "stop $stopLoss\n");
@@ -432,37 +451,94 @@ sub createCornixFreeTextSimpleTemplate {
 	return @simpleTemplate;
 }
 
+############################################################################
+############################################################################
+sub getClient {
+	my $clientNum=$_[0];
+	my $retStr;
+	my $client01 = "BM BinFuts (main)";
+	my $client02 = "BM BinSpot (main)";
+	my $client03 = "BM BybitKB7 Contract InvUSD (main) 260321";
+	my $client04 = "BM BybitKB7 Contract LinUSDT (main) 211128";
+	my $client05 = "SF BinFuts (main)";
+	my $client06 = "SF BinSpot (main)";
+	my $client07 = "SF Bybit Contract InvUSD (main) 210318";
+	my $client08 = "BM BybitKB7 Contract LinUSDT (main) 281121";
+	my $client09 = "SF FtxFuturesPerp (main)";
+	my $client10 = "SF FtxFSpot (main)";
+	my $client11 = "SF KucoinSpot (main)";
+	my $client12 = "SF Bybit Contract LinUSDT (main) 281121";
+	
+	if 		($clientNum == 1) 	{ $retStr = $client01; }
+	elsif 	($clientNum == 2) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 3) 	{ $retStr = $client02; }
+	elsif 	($clientNum == 4) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 5) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 6) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 7) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 8) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 9) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 10) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 11) 	{ $retStr = $client02; }	
+	elsif 	($clientNum == 12) 	{ $retStr = $client02; }	
+	else 						{ die "error: getClient given/when"; }
+	
+	return $retStr;
+}
 
+############################################################################
+############################################################################
+sub checkValuesFromConfigFile {
+	my $noOfEntries = $_[0];
+	my $noOfTargets = $_[1];
+	my $highEntry = $_[2];
+	my $lowEntry = $_[3];
+	my $highTarget = $_[4];
+	my $lowTarget = $_[5];
+	my $stopLoss = $_[6];
+	my $leverage = $_[7];
+
+	# number of entries should be between 1 and 10 (Cornix free text maximum is 10)
+	if (($noOfEntries<1) or ($noOfEntries>10)) { die "\nerror: noOfEntries should be 10 or less, \n"; }
+	
+	# number of targets should be between 1 and 10 (Cornix free text maximum is 10)	
+	if (($noOfTargets<1) or ($noOfTargets>10)) { die "\nerror: noOfTargets should be 10 or less, \n"; }
+	
+	# make sure high entry is above the low entry
+	if ($highEntry <= $lowEntry) { die "\nerror: highEntry is <= lowEntry\n"; }
+	
+	# make sure high target is above the low target
+	if ($highTarget <= $lowTarget) { die "\nerror: highTarget is <= lowTarget\n"; }
+	
+	# determine if it's a long or a short trade
+	my $isTradeALong;
+	if (($highEntry>$highTarget) and ($highEntry>$lowTarget) and ($lowEntry>$highTarget) and ($lowEntry>$lowTarget)) {
+		$isTradeALong = 0;
+	} elsif (($highEntry<$highTarget) and ($highEntry<$lowTarget) and ($lowEntry<$highTarget) and ($lowEntry<$lowTarget)) {
+		$isTradeALong = 1;
+	} else {
+		die "error: TradeType must be 'long' or 'short'";
+	}
+	
+	# check stop-loss value makes sense
+	if (($isTradeALong == 1) and ($stopLoss >= $lowEntry)) {
+		die "error: wrong stop-loss placement for a long";
+	} elsif (($isTradeALong == 0) and ($stopLoss <= $highEntry)) {
+		die "error: wrong stop-loss placement for a short";
+	}
+	
+	# leverage: cannot read "0" from command line, use "-1" for no leverage
+	if (($leverage<-1) or ($leverage >20)) { 
+		die "error: incorrect leverage (-1 <= lev <=20)";
+	}
+	
+	return $isTradeALong;
+}
+
+	
 ############################################################################
 ############################## main ########################################
 ############################################################################
-
-########## Client: 
-my $client01 = "BM BinFuts (main)";
-my $client02 = "BM BinSpot (main)";
-my $client03 = "BM BybitKB7 Contract InvUSD (main) 260321";
-my $client04 = "BM BybitKB7 Contract LinUSDT (main) 211128";
-my $client05 = "SF BinFuts (main)";
-my $client06 = "SF BinSpot (main)";
-my $client07 = "SF Bybit Contract InvUSD (main) 210318";
-my $client08 = "BM BybitKB7 Contract LinUSDT (main) 281121";
-my $client09 = "SF FtxFuturesPerp (main)";
-my $client10 = "SF FtxFSpot (main)";
-my $client11 = "SF KucoinSpot (main)";
-my $client12 = "SF Bybit Contract LinUSDT (main) 281121";
-########## Trade Type: 
-my $tradeTypeLongStr = "Regular (Long)";
-my $tradeTypeShortStr = "Regular (Short)";
-########## Leverage: 
-#my $levIsoStr = "Isolated"; 	## Leverage: Isolated (4.0X)!!!!!
-my $levCrossStr = "Cross";  	## Leverage: Cross (4.0X)!!!!!
-########## Trailing: 
-my $trailingLine01 = "Trailing Configuration:";
-my $trailingLine02 = "Entry: Percentage (0.0%)";
-my $trailingLine03 = "Take-Profit: Percentage (0.0%)";
-my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
-my $trailingConfig = "$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n";
-
 my $script_name = basename($0);
 my $usage = sprintf("usage is: %s -f tradeSetup.txt",$script_name); 
 my $noOfEntries;
@@ -486,18 +562,17 @@ my $weightingFactorCommandLine;
 my %dataHash;
 my %args;
 my @cornixFreeTextSimpleTemplate;
+
+# get command line arguments
 GetOptions( \%args,
 			'file=s', 	# filename
 			'wf=s'		# weighting factor (override config file weighting factor)
           ) or die "Invalid command line arguments!";
 $pathToFileCommandLine = $args{file};
 $weightingFactorCommandLine = $args{wf};
-unless ($args{file}) {
-	die "Missing --file!\n".$usage;
-}
-unless ($args{wf}) {
-	$weightingFactorCommandLine=0;
-}
+unless ($args{file}) 	{ die "Missing --file!\n".$usage; }
+unless ($args{wf}) 		{ $weightingFactorCommandLine=0; }
+
 # read trade file
 %dataHash = readTradeConfigFile($pathToFileCommandLine);
 
@@ -513,87 +588,24 @@ $noOfTargets = $dataHash{numberOfTargets};
 $lowTarget = $dataHash{lowTarget};
 $highTarget = $dataHash{highTarget};
 
-# remove white space from start and end of variables
-$pair =~ s/^\s+|\s+$//g;
-$clientIn =~ s/^\s+|\s+$//g;
-$leverage =~ s/^\s+|\s+$//g;
-$noOfEntries =~ s/^\s+|\s+$//g;
-$highEntry =~ s/^\s+|\s+$//g;
-$lowEntry =~ s/^\s+|\s+$//g;
-$stopLoss =~ s/^\s+|\s+$//g;
-$noOfTargets =~ s/^\s+|\s+$//g;
-$lowTarget =~ s/^\s+|\s+$//g;
-$highTarget =~ s/^\s+|\s+$//g;
+# check entries and targets make logical sense & determine if trade is a long or a short
+$isTradeALong = checkValuesFromConfigFile($noOfEntries,$noOfTargets,$highEntry,$lowEntry,$highTarget,$lowTarget,$stopLoss,$leverage);
 
-# number of entries should be between 1 and 10 (Cornix free text maximum is 10)
-if (($noOfEntries<1) or ($noOfEntries>10)) { die "\nerror: noOfEntries should be 10 or less, \n".$usage; }
-# number of targets should be between 1 and 10 (Cornix free text maximum is 10)
-if (($noOfTargets<1) or ($noOfTargets>10)) { die "\nerror: noOfTargets should be 10 or less, \n".$usage; }
-# make sure high entry is above the low entry
-if ($highEntry <= $lowEntry) { die "\nerror: highEntry is <= lowEntry\n".$usage; }
-# make sure high target is above the low target
-if ($highTarget <= $lowTarget) { die "\nerror: highTarget is <= lowTarget\n".$usage; }
-# determine if it's a long or a short trade
-if (($highEntry>$highTarget) and ($highEntry>$lowTarget) and ($lowEntry>$highTarget) and ($lowEntry>$lowTarget)) {
-	$tradeTypeSelectedCornixStr = $tradeTypeShortStr;
-	$isTradeALong = 0;
-} elsif (($highEntry<$highTarget) and ($highEntry<$lowTarget) and ($lowEntry<$highTarget) and ($lowEntry<$lowTarget)) {
-	$tradeTypeSelectedCornixStr = $tradeTypeLongStr;
-	$isTradeALong = 1;
-} else {
-	die "error: TradeType must be 'long' or 'short'";
-}
-# client / exchange to use
-if ($clientIn == 1) {
-	$clientSelected = $client01;
-} elsif ($clientIn == 2) {
-	$clientSelected = $client02;
-} elsif ($clientIn == 3) {
-	$clientSelected = $client03;
-} elsif ($clientIn == 4) {
-	$clientSelected = $client04;
-} elsif ($clientIn == 5) {
-	$clientSelected = $client05;
-} elsif ($clientIn == 6) {
-	$clientSelected = $client06;
-} elsif ($clientIn == 7) {
-	$clientSelected = $client07;
-} elsif ($clientIn == 8) {
-	$clientSelected = $client08;
-} elsif ($clientIn == 9) {
-	$clientSelected = $client09;
-} elsif ($clientIn == 10) {
-	$clientSelected = $client10;
-} elsif ($clientIn == 11) {
-	$clientSelected = $client11;
-} elsif ($clientIn == 12) {
-	$clientSelected = $client12;
-} else {
-	die "error: unknown client number";
-}
-# leverage: cannot read "0" from command line, use "-1" for no leverage
-if (($leverage<-1) or ($leverage >20)) { 
-	die "error: incorrect leverage (-1 <= lev <=20)";
-}
-# check stop-loss value makes sense
-if (($isTradeALong == 1) and ($stopLoss >= $lowEntry)) {
-	die "error: wrong stop-loss placement for a long";
-} elsif (($isTradeALong == 0) and ($stopLoss <= $highEntry)) {
-	die "error: wrong stop-loss placement for a short";
-}
+# get the exchange name used by Cornix
+$clientSelected = getClient($clientIn);
 
 # old and simple way of using Cornix Free Text, generate a version of this too as well as the complex template
 @cornixFreeTextSimpleTemplate = createCornixFreeTextSimpleTemplate($pair,$leverage,$highEntry,$lowEntry,$highTarget,$lowTarget,$stopLoss);
 
-
 # create the cornix template as an array of strings
-@cornixTemplateAdvanced = createAdvancedTemplate(		$pair,$clientSelected,$tradeTypeSelectedCornixStr,
-								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
-								$highTarget,$lowTarget,$stopLoss,$trailingConfig,$isTradeALong,$weightingFactorCommandLine);
+@cornixTemplateAdvanced = createAdvancedTemplate($pair,$clientSelected,$leverage,$noOfEntries,$highEntry,$lowEntry,
+													$noOfTargets,$highTarget,$lowTarget,$stopLoss,$isTradeALong,
+													$weightingFactorCommandLine);
 
 # print templates to screen
 say @cornixFreeTextSimpleTemplate;
 say @cornixTemplateAdvanced;
+
 # print template to file
 $fileName = createOutputFileName($script_name, $pair, $isTradeALong);
 open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
