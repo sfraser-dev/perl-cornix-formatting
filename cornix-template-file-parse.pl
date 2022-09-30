@@ -180,7 +180,7 @@ sub HeavyWeightingAtEntryOrStoploss {
 	my $high=$_[2];
 	my $low=$_[3];
 	my $tradeTypeIn=$_[4];
-	my $weightingFactorCommandLine=$_[5];
+	my $weightingFactor=$_[5];
 	my @strArr;
 	
 	# run EvenDistribution calculation first
@@ -239,14 +239,14 @@ sub HeavyWeightingAtEntryOrStoploss {
 	# 0,4 (0...length-1)
 	# 1,3 (1...length-2)
 	#
-	# positive weightingFactorCommandLine values weight towards the stop-loss
-	# negative weightingFactorCommandLine values weight towards the stop-loss
+	# positive weightingFactor values weight towards the stop-loss
+	# negative weightingFactor values weight towards the stop-loss
 	for(my $x = 0; $x < (int($arrLengthPerc/2)); $x++){
 		for(my $i = 0; $i < (int($arrLengthPerc/2))-$x; $i++){
 			# my $ii = $indexPairs[$i]->key;
 			my $p = $indexPairs[$i]->value;
-			$percentages[$i]-=$weightingFactorCommandLine;
-			$percentages[$p]+=$weightingFactorCommandLine;	
+			$percentages[$i]-=$weightingFactor;
+			$percentages[$p]+=$weightingFactor;	
 		}
 	}
 
@@ -268,7 +268,7 @@ sub HeavyWeightingAtEntryOrStoploss {
 
 ############################################################################
 ############################################################################
-sub createAdvancedTemplate {
+sub createCornixFreeTextAdvancedTemplate {
 	my $pair = $_[0];
 	my $clientSelected = $_[1];
 	my $leverage = $_[2];
@@ -280,7 +280,7 @@ sub createAdvancedTemplate {
 	my $lowTarget = $_[8];
 	my $stopLoss = $_[9];
 	my $isTradeALong = $_[10];
-	my $weightingFactorCommandLine = $_[11];
+	my $weightingFactor = $_[11];
 	my @template;
 	my @strArr;
 	my $strRead;
@@ -308,7 +308,7 @@ sub createAdvancedTemplate {
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
 	#@strArr = EvenDistribution("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong);
-	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorCommandLine);
+	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactor);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -344,7 +344,7 @@ sub createAdvancedTemplate {
 ############################################################################
 sub readTradeConfigFile {
 	# Cornix: max entries 10, only 1 SL allowed, max targets 10
-	my $path_to_file = $_[0];
+	my $pathToFile = $_[0];
 	my %dataHash = 	( 'coinPair' => "xxx/usdt",
 					'client' => 999999,
 					'leverage' => 999999,
@@ -356,7 +356,7 @@ sub readTradeConfigFile {
 					'lowTarget' => 0,
 					'highTarget' => 0
 				);
-	open my $info, $path_to_file or die "Could not open $path_to_file: $!";
+	open my $info, $pathToFile or die "Could not open $pathToFile: $!";
 	while( my $line = <$info>) { 
 		my $temp = $line;
 		$temp =~ s/^\s+|\s+$//g;	# remove leading and trailing whitespace
@@ -453,35 +453,23 @@ sub createCornixFreeTextSimpleTemplate {
 
 ############################################################################
 ############################################################################
-sub getClient {
+sub getCornixClientName {
 	my $clientNum=$_[0];
 	my $retStr;
-	my $client01 = "BM BinFuts (main)";
-	my $client02 = "BM BinSpot (main)";
-	my $client03 = "BM BybitKB7 Contract InvUSD (main) 260321";
-	my $client04 = "BM BybitKB7 Contract LinUSDT (main) 211128";
-	my $client05 = "SF BinFuts (main)";
-	my $client06 = "SF BinSpot (main)";
-	my $client07 = "SF Bybit Contract InvUSD (main) 210318";
-	my $client08 = "BM BybitKB7 Contract LinUSDT (main) 281121";
-	my $client09 = "SF FtxFuturesPerp (main)";
-	my $client10 = "SF FtxFSpot (main)";
-	my $client11 = "SF KucoinSpot (main)";
-	my $client12 = "SF Bybit Contract LinUSDT (main) 281121";
 	
-	if 		($clientNum == 1) 	{ $retStr = $client01; }
-	elsif 	($clientNum == 2) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 3) 	{ $retStr = $client02; }
-	elsif 	($clientNum == 4) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 5) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 6) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 7) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 8) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 9) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 10) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 11) 	{ $retStr = $client02; }	
-	elsif 	($clientNum == 12) 	{ $retStr = $client02; }	
-	else 						{ die "error: getClient given/when"; }
+	if 		($clientNum == 1) 	{ $retStr = "BM BinFuts (main)"; }
+	elsif 	($clientNum == 2) 	{ $retStr = "BM BinSpot (main)"; }	
+	elsif 	($clientNum == 3) 	{ $retStr = "BM BybitKB7 Contract InvUSD (main) 260321"; }
+	elsif 	($clientNum == 4) 	{ $retStr = "BM BybitKB7 Contract LinUSDT (main) 211128"; }	
+	elsif 	($clientNum == 5) 	{ $retStr = "SF BinFuts (main)"; }	
+	elsif 	($clientNum == 6) 	{ $retStr = "SF BinSpot (main)"; }	
+	elsif 	($clientNum == 7) 	{ $retStr = "SF Bybit Contract InvUSD (main) 210318"; }	
+	elsif 	($clientNum == 8) 	{ $retStr = "BM BybitKB7 Contract LinUSDT (main) 281121"; }	
+	elsif 	($clientNum == 9) 	{ $retStr = "SF FtxFuturesPerp (main)"; }	
+	elsif 	($clientNum == 10) 	{ $retStr = "SF FtxFSpot (main)"; }	
+	elsif 	($clientNum == 11) 	{ $retStr = "SF KucoinSpot (main)"; }	
+	elsif 	($clientNum == 12) 	{ $retStr = "SF Bybit Contract LinUSDT (main) 281121"; }	
+	else 						{ die "error: can't determine Cornix client/exchange name"; }
 	
 	return $retStr;
 }
@@ -539,77 +527,63 @@ sub checkValuesFromConfigFile {
 ############################################################################
 ############################## main ########################################
 ############################################################################
-my $script_name = basename($0);
-my $usage = sprintf("usage is: %s -f tradeSetup.txt",$script_name); 
-my $noOfEntries;
-my $highEntry;
-my $lowEntry;
-my $stopLoss;
-my $noOfTargets;
-my $highTarget;
-my $lowTarget;
-my $pair;
-my $clientIn;
-my $clientSelected;
-my $tradeTypeSelectedCornixStr;
-my $leverage;
-my $isTradeALong;
-my @cornixTemplateAdvanced;
-my $fileName;
-my $fh;
-my $pathToFileCommandLine;
-my $weightingFactorCommandLine;
-my %dataHash;
-my %args;
-my @cornixFreeTextSimpleTemplate;
-
 # get command line arguments
+my %args;
 GetOptions( \%args,
 			'file=s', 	# filename
 			'wf=s'		# weighting factor (override config file weighting factor)
           ) or die "Invalid command line arguments!";
-$pathToFileCommandLine = $args{file};
-$weightingFactorCommandLine = $args{wf};
-unless ($args{file}) 	{ die "Missing --file!\n".$usage; }
-unless ($args{wf}) 		{ $weightingFactorCommandLine=0; }
+my $pathToFile = $args{file};
+my $weightingFactor = $args{wf};
+unless ($args{file}) 	{ die "Missing --file!\n"; }		# --file FileName
+unless ($args{wf}) 		{ $weightingFactor=0; }		# --wf WeightingFactor (for spreading percentages)
 
 # read trade file
-%dataHash = readTradeConfigFile($pathToFileCommandLine);
-
-# assign key pairs from hash to variables
-$pair = $dataHash{coinPair};
-$clientIn = $dataHash{client};
-$leverage = $dataHash{leverage};
-$noOfEntries = $dataHash{numberOfEntries};
-$highEntry = $dataHash{highEntry};
-$lowEntry = $dataHash{lowEntry};
-$stopLoss = $dataHash{stopLoss};
-$noOfTargets = $dataHash{numberOfTargets};
-$lowTarget = $dataHash{lowTarget};
-$highTarget = $dataHash{highTarget};
+my %configHash = readTradeConfigFile($pathToFile);
 
 # check entries and targets make logical sense & determine if trade is a long or a short
-$isTradeALong = checkValuesFromConfigFile($noOfEntries,$noOfTargets,$highEntry,$lowEntry,$highTarget,$lowTarget,$stopLoss,$leverage);
+my $isTradeALong = checkValuesFromConfigFile($configHash{numberOfEntries},
+											$configHash{numberOfTargets},
+											$configHash{highEntry},
+											$configHash{lowEntry},
+											$configHash{highTarget},
+											$configHash{lowTarget},
+											$configHash{stopLoss},
+											$configHash{leverage});
 
-# get the exchange name used by Cornix
-$clientSelected = getClient($clientIn);
+# old and simple way of using Cornix Free Text, generate a version of this too as well as the advanced template
+my @cornixTemplateSimple = createCornixFreeTextSimpleTemplate($configHash{coinPair},
+																	$configHash{leverage},
+																	$configHash{highEntry},
+																	$configHash{lowEntry},
+																	$configHash{highTarget},
+																	$configHash{lowTarget},
+																	$configHash{stopLoss});
 
-# old and simple way of using Cornix Free Text, generate a version of this too as well as the complex template
-@cornixFreeTextSimpleTemplate = createCornixFreeTextSimpleTemplate($pair,$leverage,$highEntry,$lowEntry,$highTarget,$lowTarget,$stopLoss);
-
-# create the cornix template as an array of strings
-@cornixTemplateAdvanced = createAdvancedTemplate($pair,$clientSelected,$leverage,$noOfEntries,$highEntry,$lowEntry,
-													$noOfTargets,$highTarget,$lowTarget,$stopLoss,$isTradeALong,
-													$weightingFactorCommandLine);
+# create the advanced cornix template as an array of strings
+my @cornixTemplateAdvanced = createCornixFreeTextAdvancedTemplate($configHash{coinPair},
+													getCornixClientName($configHash{client}),
+													$configHash{leverage},
+													$configHash{numberOfEntries},
+													$configHash{highEntry},
+													$configHash{lowEntry},
+													$configHash{numberOfTargets},
+													$configHash{highTarget},
+													$configHash{lowTarget},
+													$configHash{stopLoss},
+													$isTradeALong,
+													$weightingFactor);
 
 # print templates to screen
-say @cornixFreeTextSimpleTemplate;
+say @cornixTemplateSimple;
 say @cornixTemplateAdvanced;
 
 # print template to file
-$fileName = createOutputFileName($script_name, $pair, $isTradeALong);
+my $scriptName = basename($0);
+my $fileName = createOutputFileName($scriptName, $configHash{coinPair}, $isTradeALong);
+my $fh;
 open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
-say $fh @cornixFreeTextSimpleTemplate;
+say $fh @cornixTemplateSimple;
 say $fh @cornixTemplateAdvanced;
 
 	
