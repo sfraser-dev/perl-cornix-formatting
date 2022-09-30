@@ -7,7 +7,8 @@ use File::Basename;
 use POSIX qw(strftime);
 use List::Util qw(pairs);
 
-########## subroutines
+############################################################################
+############################################################################
 sub createOutputFileName {
 	my $scriptName = $_[0];
 	my $pair = $_[1];
@@ -35,6 +36,8 @@ sub createOutputFileName {
 	return $txtFile;
 }
 
+############################################################################
+############################################################################
 sub EvenDistribution {
 	my $entriesOrTargets=$_[0];
 	my $noOfEntriesOrTargetsWanted=$_[1];
@@ -123,6 +126,8 @@ sub EvenDistribution {
 	return @strArr;
 }
 
+############################################################################
+############################################################################
 sub riskSofteningMultiplier {
 	# assumes advanced template entries are in the correct order (whether long or shorting)
 	my @strArr=@{$_[0]}; 					# dereference the passed array
@@ -167,12 +172,15 @@ sub riskSofteningMultiplier {
 	return $riskSoftMult;
 }
 
+############################################################################
+############################################################################
 sub HeavyWeightingAtEntryOrStoploss {
 	my $entriesOrTargetsStr=$_[0];
 	my $noOfEntries=$_[1];
 	my $high=$_[2];
 	my $low=$_[3];
 	my $tradeTypeIn=$_[4];
+	my $weightingFactorCommandLine=$_[5];
 	my @strArr;
 	
 	# run EvenDistribution calculation first
@@ -183,7 +191,7 @@ sub HeavyWeightingAtEntryOrStoploss {
 	for my $i (0 .. $#strArr) {
 		my @splitter=split / /, $strArr[$i];	# split line using spaces, [0]=1), [1]=value, [2]=hyphen, [3]=percentage
 		my $percentage = ($splitter[3]);
-		$percentage =~ s/%//g;				# remove percentage sign
+		$percentage =~ s/%//g;					# remove percentage sign
 		push (@percentages, $percentage);
 	}
 	
@@ -230,18 +238,20 @@ sub HeavyWeightingAtEntryOrStoploss {
 	### index pairs
 	# 0,4 (0...length-1)
 	# 1,3 (1...length-2)
-	my $weightingFactor = 0.5;
+	say"weightingFactorCommandLine=$weightingFactorCommandLine";
 	my $isEntryHeavyWeighting = 0;	# entry or stop-loss heavy weighting
 	for(my $x = 0; $x < (int($arrLengthPerc/2)); $x++){
 		for(my $i = 0; $i < (int($arrLengthPerc/2))-$x; $i++){
 			# my $ii = $indexPairs[$i]->key;
 			my $p = $indexPairs[$i]->value;
+			# heavy weighting towards entry
 			if ($isEntryHeavyWeighting == 1) {
-				$percentages[$i]+=$weightingFactor;
-				$percentages[$p]-=$weightingFactor;
+				$percentages[$i]+=$weightingFactorCommandLine;
+				$percentages[$p]-=$weightingFactorCommandLine;
+			# heavy weighting towards stop-loss
 			} elsif ($isEntryHeavyWeighting == 0) {
-				$percentages[$i]-=$weightingFactor;
-				$percentages[$p]+=$weightingFactor;	
+				$percentages[$i]-=$weightingFactorCommandLine;
+				$percentages[$p]+=$weightingFactorCommandLine;	
 			} else { die "error: isEntryHeavyWeighting incorrectly set"; }
 		}
 	}
@@ -262,6 +272,8 @@ sub HeavyWeightingAtEntryOrStoploss {
 	return @strArrNewPercentages;
 }
 
+############################################################################
+############################################################################
 sub createAdvancedTemplate {
 	my $pair = $_[0];
 	my $clientSelected = $_[1];
@@ -276,6 +288,7 @@ sub createAdvancedTemplate {
 	my $stopLoss = $_[10];
 	my $trailingConfig = $_[11];
 	my $isTradeALong = $_[12];
+	my $weightingFactorCommandLine = $_[13];
 	my @template;
 	my @strArr;
 	my $strRead;
@@ -290,7 +303,7 @@ sub createAdvancedTemplate {
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
 	#@strArr = EvenDistribution("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong);
-	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong);
+	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorCommandLine);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -314,7 +327,10 @@ sub createAdvancedTemplate {
 	
 	return @template;
 }
-sub readTradeFile {
+
+############################################################################
+############################################################################
+sub readTradeConfigFile {
 	# Cornix: max entries 10, only 1 SL allowed, max targets 10
 	my $path_to_file = $_[0];
 	my %dataHash = 	( 'coinPair' => "xxx/usdt",
@@ -400,6 +416,8 @@ sub readTradeFile {
 	return %dataHash;
 }
 
+############################################################################
+############################################################################
 sub createCornixFreeTextSimpleTemplate {
 	my $pair=$_[0];
 	my $leverage=$_[1];
@@ -420,6 +438,10 @@ sub createCornixFreeTextSimpleTemplate {
 	return @simpleTemplate;
 }
 
+
+############################################################################
+############################## main ########################################
+############################################################################
 
 ########## Client: 
 my $client01 = "BM BinFuts (main)";
@@ -465,18 +487,22 @@ my $isTradeALong;
 my @cornixTemplateAdvanced;
 my $fileName;
 my $fh;
-my $path_to_file;
+my $pathToFileCommandLine;
+my $weightingFactorCommandLine;
 my %dataHash;
 my %args;
 my @cornixFreeTextSimpleTemplate;
 GetOptions( \%args,
-			'f=s' # filename
+			'file=s', 	# filename
+			'wf=s'		# weighting factor (override config file weighting factor)
           ) or die "Invalid command line arguments!";
-die "Missing -f!\n".$usage unless $args{f};
-$path_to_file = $args{f};
+die "Missing --file!\n".$usage unless $args{file};
+$weightingFactorCommandLine=0 unless $args{wf};
+$pathToFileCommandLine = $args{file};
+$weightingFactorCommandLine = $args{wf};
 
 # read trade file
-%dataHash = readTradeFile($path_to_file);
+%dataHash = readTradeConfigFile($pathToFileCommandLine);
 
 # assign key pairs from hash to variables
 $pair = $dataHash{coinPair};
@@ -566,7 +592,7 @@ if (($isTradeALong == 1) and ($stopLoss >= $lowEntry)) {
 # create the cornix template as an array of strings
 @cornixTemplateAdvanced = createAdvancedTemplate(		$pair,$clientSelected,$tradeTypeSelectedCornixStr,
 								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
-								$highTarget,$lowTarget,$stopLoss,$trailingConfig,$isTradeALong);
+								$highTarget,$lowTarget,$stopLoss,$trailingConfig,$isTradeALong,$weightingFactorCommandLine);
 
 # print templates to screen
 say @cornixFreeTextSimpleTemplate;
