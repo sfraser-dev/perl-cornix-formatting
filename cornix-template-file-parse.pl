@@ -11,11 +11,12 @@ use List::Util qw(pairs);
 sub createOutputFileName {
 	my $scriptName = $_[0];
 	my $pair = $_[1];
-	my $tradeTypeIn = $_[2];
+	my $isTradeALong = $_[2];
 	my $txtFile;
 	my $date;
 	my $dateWee;
 	my $pairNoSlash;
+	my $longOrShortStr;
 	$scriptName=~s/\.pl//;
 	#$date = strftime "%Y%m%d-%H%M%S", localtime;
 	$date = strftime "%Y%m%d-%H%M", localtime;
@@ -23,7 +24,14 @@ sub createOutputFileName {
 	$dateWee = substr($date, 2);
 	$pairNoSlash = $pair;
 	$pairNoSlash =~ s/\///g;
-	$txtFile = "$dateWee-$pairNoSlash-$tradeTypeIn\.txt";
+	if ($isTradeALong == 1) {
+		$longOrShortStr="long";
+	} elsif ($isTradeALong == 0) {
+		$longOrShortStr="short";
+	} else {
+		die "error: trade is neither a long nor a short";
+	}
+	$txtFile = "$dateWee-$pairNoSlash-$longOrShortStr\.txt";
 	return $txtFile;
 }
 
@@ -32,7 +40,7 @@ sub EvenDistribution {
 	my $noOfEntriesOrTargetsWanted=$_[1];
 	my $high=$_[2];
 	my $low=$_[3];
-	my $tradeTypeIn=$_[4];
+	my $isTradeALong=$_[4];
 	my @strArr;
 	
 	# deal with only 1 entry (use "high" values, not the "low" values)
@@ -48,36 +56,36 @@ sub EvenDistribution {
 	# put entries or targets in the correct order based on whether longing or shorting
 	if ($entriesOrTargets eq "entries") {
 		# long entries
-		if ($tradeTypeIn eq "long") {
+		if ($isTradeALong == 1) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $high-($entryIncrement*$i));
 			}
 		}
 		# short entries
-		elsif ($tradeTypeIn eq "short") {
+		elsif ($isTradeALong == 0) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
 			}
 		} 
 		else {
-			die "error: need to declare 'long' or 'short' when generating entries";
+			die "error: need to declare trade either a long or a short when generating entries";
 		}
 	}
 	elsif ($entriesOrTargets eq "targets") {
 		# long targets
-		if ($tradeTypeIn eq "long") {
+		if ($isTradeALong == 1) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
 			}
 		}
 		# short targets
-		elsif ($tradeTypeIn eq "short") {
+		elsif ($isTradeALong == 0) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $high-($entryIncrement*$i));
 			}
 		} 
 		else {
-			die "error: need to declare 'long' or 'short' when generating targets";
+			die "error: need to declare trade either a long or a short when generating targets";
 		}
 	}
 	else {
@@ -222,7 +230,7 @@ sub HeavyWeightingAtEntryOrStoploss {
 	### index pairs
 	# 0,4 (0...length-1)
 	# 1,3 (1...length-2)
-	my $weightingFactor = 0.25;
+	my $weightingFactor = 0.5;
 	my $isEntryHeavyWeighting = 0;	# entry or stop-loss heavy weighting
 	for(my $x = 0; $x < (int($arrLengthPerc/2)); $x++){
 		for(my $i = 0; $i < (int($arrLengthPerc/2))-$x; $i++){
@@ -267,7 +275,7 @@ sub createAdvancedTemplate {
 	my $lowTarget = $_[9];
 	my $stopLoss = $_[10];
 	my $trailingConfig = $_[11];
-	my $tradeTypeIn = $_[12];
+	my $isTradeALong = $_[12];
 	my @template;
 	my @strArr;
 	my $strRead;
@@ -281,8 +289,8 @@ sub createAdvancedTemplate {
 	
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
-	#@strArr = EvenDistribution("entries",$noOfEntries,$highEntry,$lowEntry,$tradeTypeIn);
-	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$tradeTypeIn);
+	#@strArr = EvenDistribution("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong);
+	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -290,8 +298,8 @@ sub createAdvancedTemplate {
 
 	push (@template,"\n");
 	push (@template,"Take-Profit Targets:\n");
-	@strArr = EvenDistribution("targets",$noOfTargets,$highTarget,$lowTarget,$tradeTypeIn);
-	#@strArr = EntryHeavyWeighting("targets",$noOfTargets,$highTarget,$lowTarget,$tradeTypeIn);
+	@strArr = EvenDistribution("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong);
+	#@strArr = EntryHeavyWeighting("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -311,7 +319,6 @@ sub readTradeFile {
 	my $path_to_file = $_[0];
 	my %dataHash = 	( 'coinPair' => "xxx/usdt",
 					'client' => 999999,
-					'tradeType' => "xxx",
 					'leverage' => 999999,
 					'numberOfEntries' => 0,
 					'highEntry' => 0,
@@ -339,12 +346,6 @@ sub readTradeFile {
 			my $val = $splitter[1];
 			chomp($val);
 			$dataHash{client}=$val;
-		}
-		if ($line =~ m/tradeType/) {
-			my @splitter = split(/=/,$line);
-			my $val = $splitter[1];
-			chomp($val);
-			$dataHash{tradeType}=$val;
 		}
 		if ($line =~ m/leverage/) {
 			my @splitter = split(/=/,$line);
@@ -432,12 +433,13 @@ my $client08 = "BM BybitKB7 Contract LinUSDT (main) 281121";
 my $client09 = "SF FtxFuturesPerp (main)";
 my $client10 = "SF FtxFSpot (main)";
 my $client11 = "SF KucoinSpot (main)";
+my $client12 = "SF Bybit Contract LinUSDT (main) 281121";
 ########## Trade Type: 
 my $tradeTypeLongStr = "Regular (Long)";
 my $tradeTypeShortStr = "Regular (Short)";
 ########## Leverage: 
-#my $levIsoStr = "Isolated"; ## Leverage: Isolated (4.0X)!!!!!
-my $levCrossStr = "Cross";  ## Leverage: Cross (4.0X)!!!!!
+#my $levIsoStr = "Isolated"; 	## Leverage: Isolated (4.0X)!!!!!
+my $levCrossStr = "Cross";  	## Leverage: Cross (4.0X)!!!!!
 ########## Trailing: 
 my $trailingLine01 = "Trailing Configuration:";
 my $trailingLine02 = "Entry: Percentage (0.0%)";
@@ -457,10 +459,9 @@ my $lowTarget;
 my $pair;
 my $clientIn;
 my $clientSelected;
-my $tradeTypeIn;
 my $tradeTypeSelectedCornixStr;
 my $leverage;
-my $tradeIsALong;
+my $isTradeALong;
 my @cornixTemplateAdvanced;
 my $fileName;
 my $fh;
@@ -480,7 +481,6 @@ $path_to_file = $args{f};
 # assign key pairs from hash to variables
 $pair = $dataHash{coinPair};
 $clientIn = $dataHash{client};
-$tradeTypeIn = $dataHash{tradeType};
 $leverage = $dataHash{leverage};
 $noOfEntries = $dataHash{numberOfEntries};
 $highEntry = $dataHash{highEntry};
@@ -493,7 +493,6 @@ $highTarget = $dataHash{highTarget};
 # remove white space from start and end of variables
 $pair =~ s/^\s+|\s+$//g;
 $clientIn =~ s/^\s+|\s+$//g;
-$tradeTypeIn =~ s/^\s+|\s+$//g;
 $leverage =~ s/^\s+|\s+$//g;
 $noOfEntries =~ s/^\s+|\s+$//g;
 $highEntry =~ s/^\s+|\s+$//g;
@@ -511,6 +510,16 @@ if (($noOfTargets<1) or ($noOfTargets>10)) { die "\nerror: noOfTargets should be
 if ($highEntry <= $lowEntry) { die "\nerror: highEntry is <= lowEntry\n".$usage; }
 # make sure high target is above the low target
 if ($highTarget <= $lowTarget) { die "\nerror: highTarget is <= lowTarget\n".$usage; }
+# determine if it's a long or a short trade
+if (($highEntry>$highTarget) and ($highEntry>$lowTarget) and ($lowEntry>$highTarget) and ($lowEntry>$lowTarget)) {
+	$tradeTypeSelectedCornixStr = $tradeTypeShortStr;
+	$isTradeALong = 0;
+} elsif (($highEntry<$highTarget) and ($highEntry<$lowTarget) and ($lowEntry<$highTarget) and ($lowEntry<$lowTarget)) {
+	$tradeTypeSelectedCornixStr = $tradeTypeLongStr;
+	$isTradeALong = 1;
+} else {
+	die "error: TradeType must be 'long' or 'short'";
+}
 # client / exchange to use
 if ($clientIn == 1) {
 	$clientSelected = $client01;
@@ -534,27 +543,19 @@ if ($clientIn == 1) {
 	$clientSelected = $client10;
 } elsif ($clientIn == 11) {
 	$clientSelected = $client11;
+} elsif ($clientIn == 12) {
+	$clientSelected = $client12;
 } else {
 	die "error: unknown client number";
-}
-# trade type (long or short)
-if ($tradeTypeIn eq "long") {
-	$tradeTypeSelectedCornixStr = $tradeTypeLongStr;
-	$tradeIsALong = 1;
-} elsif ($tradeTypeIn eq "short") {
-	$tradeTypeSelectedCornixStr = $tradeTypeShortStr;
-	$tradeIsALong = 0;
-} else {
-	die "error: TradeType must be 'long' or 'short'";
 }
 # leverage: cannot read "0" from command line, use "-1" for no leverage
 if (($leverage<-1) or ($leverage >20)) { 
 	die "error: incorrect leverage (-1 <= lev <=20)";
 }
 # check stop-loss value makes sense
-if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
+if (($isTradeALong == 1) and ($stopLoss >= $lowEntry)) {
 	die "error: wrong stop-loss placement for a long";
-} elsif (($tradeIsALong == 0) and ($stopLoss <= $highEntry)) {
+} elsif (($isTradeALong == 0) and ($stopLoss <= $highEntry)) {
 	die "error: wrong stop-loss placement for a short";
 }
 
@@ -565,13 +566,13 @@ if (($tradeIsALong == 1) and ($stopLoss >= $lowEntry)) {
 # create the cornix template as an array of strings
 @cornixTemplateAdvanced = createAdvancedTemplate(		$pair,$clientSelected,$tradeTypeSelectedCornixStr,
 								$leverage,$noOfEntries,$highEntry,$lowEntry,$noOfTargets,
-								$highTarget,$lowTarget,$stopLoss,$trailingConfig,$tradeTypeIn);
+								$highTarget,$lowTarget,$stopLoss,$trailingConfig,$isTradeALong);
 
 # print templates to screen
 say @cornixFreeTextSimpleTemplate;
 say @cornixTemplateAdvanced;
 # print template to file
-$fileName = createOutputFileName($script_name, $pair, $tradeTypeIn);
+$fileName = createOutputFileName($script_name, $pair, $isTradeALong);
 open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
 say $fh @cornixFreeTextSimpleTemplate;
 say $fh @cornixTemplateAdvanced;
