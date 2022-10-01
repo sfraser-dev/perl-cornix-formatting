@@ -280,7 +280,8 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $lowTarget = $_[8];
 	my $stopLoss = $_[9];
 	my $isTradeALong = $_[10];
-	my $weightingFactor = $_[11];
+	my $weightingFactorEntries = $_[11];
+	my $weightingFactorTargets = $_[12];
 	my @template;
 	my @strArr;
 	my $strRead;
@@ -307,8 +308,7 @@ sub createCornixFreeTextAdvancedTemplate {
 	# entry targets
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
-	#@strArr = EvenDistribution("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong);
-	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactor);
+	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorEntries);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -317,8 +317,7 @@ sub createCornixFreeTextAdvancedTemplate {
 	# take profit targets
 	push (@template,"\n");
 	push (@template,"Take-Profit Targets:\n");
-	@strArr = EvenDistribution("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong);
-	#@strArr = EntryHeavyWeighting("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong);
+	@strArr = HeavyWeightingAtEntryOrStoploss("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong,$weightingFactorTargets);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -531,12 +530,15 @@ sub checkValuesFromConfigFile {
 my %args;
 GetOptions( \%args,
 			'file=s', 	# filename
-			'wf=s'		# weighting factor (override config file weighting factor)
+			'ewf=s',	# entry weighting factor (override config file weighting factor)
+			'twf=s'		# target weighting factor (override config file weighting factor)
           ) or die "Invalid command line arguments!";
 my $pathToFile = $args{file};
-my $weightingFactor = $args{wf};
-unless ($args{file}) 	{ die "Missing --file!\n"; }		# --file FileName
-unless ($args{wf}) 		{ $weightingFactor=0; }		# --wf WeightingFactor (for spreading percentages)
+my $weightingFactorEntries = $args{ewf};
+my $weightingFactorTargets = $args{twf};
+unless ($args{file}) 	{ die "Missing --file!\n"; }			# --file FileName
+unless ($args{ewf}) 	{ $weightingFactorEntries=0; }			# --ewf EntryWeightingFactor (for spreading percentages)
+unless ($args{twf}) 	{ $weightingFactorTargets=0; }			# --twf EntryWeightingFactor (for spreading percentages)
 
 # read trade file
 my %configHash = readTradeConfigFile($pathToFile);
@@ -572,7 +574,8 @@ my @cornixTemplateAdvanced = createCornixFreeTextAdvancedTemplate($configHash{co
 													$configHash{lowTarget},
 													$configHash{stopLoss},
 													$isTradeALong,
-													$weightingFactor);
+													$weightingFactorEntries,
+													$weightingFactorTargets);
 
 # print templates to screen
 say @cornixTemplateSimple;
