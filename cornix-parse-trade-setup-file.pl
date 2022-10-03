@@ -239,9 +239,13 @@ sub HeavyWeightingAtEntryOrStoploss {
 	### index pairs
 	# 0,4 (0...length-1)
 	# 1,3 (1...length-2)
-	#
-	# positive weightingFactor values weight towards the stop-loss
-	# negative weightingFactor values weight towards the stop-loss
+	
+	# entries: positive values are the more "disciplined" weightings
+	# entries: positive weightingFactor values weight towards the stop-loss
+	# entries: negative weightingFactor values weight towards the entry
+	# targets: positive values is the more "disciplined" weightings
+	# targets: positive weightingFactor values weight towards the furthest away target
+	# targets: negative weightingFactor values weight towards the closest target
 	for(my $x = 0; $x < (int($arrLengthPerc/2)); $x++){
 		for(my $i = 0; $i < (int($arrLengthPerc/2))-$x; $i++){
 			# my $ii = $indexPairs[$i]->key;
@@ -260,6 +264,7 @@ sub HeavyWeightingAtEntryOrStoploss {
 		my $hash = ($splitter[2]);
 		my $per = ($splitter[3]);
 		$per = sprintf("%.2f", $percentages[$i]);
+		if ($per <= 0) { die "error: percentage weighting is zero or less"; }
 		my $newline = $num." ".$val." ".$hash." "."$per%\n";
 		push(@strArrNewPercentages, $newline);
 	}
