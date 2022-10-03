@@ -44,6 +44,7 @@ sub EvenDistribution {
 	my $high=$_[2];
 	my $low=$_[3];
 	my $isTradeALong=$_[4];
+	my $noDecimalPlacesForEntriesTargetsAndSLs=$_[5];
 	my @strArr;
 	
 	# deal with only 1 entry (use "high" values, not the "low" values)
@@ -118,7 +119,7 @@ sub EvenDistribution {
 	# print out the entries / targets and their percentage allocations
 	for my $i (0 .. $#entryOrTargetValsArr){
 		my $loc = $i+1;
-		my $val = sprintf("%.5f",$entryOrTargetValsArr[$i]);
+		my $val = formatToVariableNumberOfDecimalPlaces($entryOrTargetValsArr[$i],$noDecimalPlacesForEntriesTargetsAndSLs);
 		my $perc = $percentageArr[$i];
 		push(@strArr,"$loc) $val - $perc%\n");
 	}
@@ -181,10 +182,11 @@ sub HeavyWeightingAtEntryOrStoploss {
 	my $low=$_[3];
 	my $tradeTypeIn=$_[4];
 	my $weightingFactor=$_[5];
+	my $noDecimalPlacesForEntriesTargetsAndSLs=$_[6];
 	my @strArr;
 	
 	# run EvenDistribution calculation first
-	@strArr = EvenDistribution($entriesOrTargetsStr,$noOfEntries,$high,$low,$tradeTypeIn);
+	@strArr = EvenDistribution($entriesOrTargetsStr,$noOfEntries,$high,$low,$tradeTypeIn,$noDecimalPlacesForEntriesTargetsAndSLs);
 	
 	# get the percentages from @strArr
 	my @percentages;
@@ -198,7 +200,6 @@ sub HeavyWeightingAtEntryOrStoploss {
 	# is there an odd or even number of percentages?
 	my $arrLengthPerc = @percentages;
 	my $mod = $arrLengthPerc % 2;
-	my $quot = int($arrLengthPerc / 2);
 	my $isEven;
 	if ($mod == 0) {
 		$isEven = 1;
@@ -268,6 +269,19 @@ sub HeavyWeightingAtEntryOrStoploss {
 
 ############################################################################
 ############################################################################
+sub formatToVariableNumberOfDecimalPlaces {
+	my $valIn = $_[0];
+	my $decimalPlaces = $_[1];
+	
+	# sprintf("%.Xf",str) where X is variable
+	my $temp = "%.$decimalPlaces"."f";			
+	my $valOut = sprintf($temp, $valIn);
+	
+	return $valOut;
+}
+
+############################################################################
+############################################################################
 sub createCornixFreeTextAdvancedTemplate {
 	my $pair = $_[0];
 	my $clientSelected = $_[1];
@@ -279,9 +293,10 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $highTarget = $_[7];
 	my $lowTarget = $_[8];
 	my $stopLoss = $_[9];
-	my $isTradeALong = $_[10];
-	my $weightingFactorEntries = $_[11];
-	my $weightingFactorTargets = $_[12];
+	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[10];
+	my $isTradeALong = $_[11];
+	my $weightingFactorEntries = $_[12];
+	my $weightingFactorTargets = $_[13];
 	my @template;
 	my @strArr;
 	my $strRead;
@@ -307,7 +322,7 @@ sub createCornixFreeTextAdvancedTemplate {
 	# entry targets
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
-	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorEntries);
+	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorEntries,$noDecimalPlacesForEntriesTargetsAndSLs);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
@@ -316,14 +331,16 @@ sub createCornixFreeTextAdvancedTemplate {
 	# take profit targets
 	push (@template,"\n");
 	push (@template,"Take-Profit Targets:\n");
-	@strArr = HeavyWeightingAtEntryOrStoploss("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong,$weightingFactorTargets);
+	@strArr = HeavyWeightingAtEntryOrStoploss("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong,$weightingFactorTargets,$noDecimalPlacesForEntriesTargetsAndSLs);
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
-	
+
+
 	# stop-loss
+	my $sl = formatToVariableNumberOfDecimalPlaces($stopLoss, $noDecimalPlacesForEntriesTargetsAndSLs);
 	push (@template,"\n");
-	push (@template,"Stop Targets:\n1) $stopLoss - 100%\n");
+	push (@template,"Stop Targets:\n1) $sl - 100%\n");
 	push (@template,"\n");
 	
 	# trailing configuration
@@ -352,7 +369,8 @@ sub readTradeConfigFile {
 					'stopLoss' => 0,
 					'numberOfTargets' => 0,
 					'lowTarget' => 0,
-					'highTarget' => 0
+					'highTarget' => 0,
+					'noDecimalPlacesForEntriesTargetsAndSLs' => 0
 				);
 	open my $info, $pathToFile or die "Could not open $pathToFile: $!";
 	while( my $line = <$info>) { 
@@ -422,6 +440,12 @@ sub readTradeConfigFile {
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{highTarget}=$val;
 		}
+		if ($line =~ m/decimalPlaces/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
+			$dataHash{noDecimalPlacesForEntriesTargetsAndSLs}=$val;
+		}
 	}
 	close $info;
 	return %dataHash;
@@ -437,15 +461,22 @@ sub createCornixFreeTextSimpleTemplate {
 	my $highTarget=$_[4];
 	my $lowTarget=$_[5];
 	my $stopLoss=$_[6];
+	my $noDecimalPlacesForEntriesTargetsAndSLs=$_[7];
 	my @simpleTemplate; 
 
 	push (@simpleTemplate, "########################### simple template\n");
 	push(@simpleTemplate,"$pair\n");
 	#if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage isolated %sx\n",$leverage)); }
 	if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage cross %sx\n",$leverage)); }
-	push(@simpleTemplate, "enter $highEntry $lowEntry\n");
-	push(@simpleTemplate, "stop $stopLoss\n");
-	push(@simpleTemplate, "targets $lowTarget $highTarget\n");
+	
+	my $he = formatToVariableNumberOfDecimalPlaces($highEntry,$noDecimalPlacesForEntriesTargetsAndSLs);
+	my $le = formatToVariableNumberOfDecimalPlaces($lowEntry,$noDecimalPlacesForEntriesTargetsAndSLs);
+	my $ht = formatToVariableNumberOfDecimalPlaces($highTarget,$noDecimalPlacesForEntriesTargetsAndSLs);
+	my $lt = formatToVariableNumberOfDecimalPlaces($lowTarget,$noDecimalPlacesForEntriesTargetsAndSLs);
+	my $sl = formatToVariableNumberOfDecimalPlaces($stopLoss,$noDecimalPlacesForEntriesTargetsAndSLs);
+	push(@simpleTemplate, "enter $he $le\n");
+	push(@simpleTemplate, "stop $sl\n");
+	push(@simpleTemplate, "targets $lt $ht\n");
 	
 	return @simpleTemplate;
 }
@@ -484,6 +515,7 @@ sub checkValuesFromConfigFile {
 	my $lowTarget = $_[5];
 	my $stopLoss = $_[6];
 	my $leverage = $_[7];
+	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[8];
 
 	# number of entries should be between 1 and 10 (Cornix free text maximum is 10)
 	if (($noOfEntries<1) or ($noOfEntries>10)) { die "\nerror: noOfEntries should be 10 or less, \n"; }
@@ -517,6 +549,11 @@ sub checkValuesFromConfigFile {
 	# leverage: cannot read "0" from command line, use "-1" for no leverage
 	if (($leverage<-1) or ($leverage >20)) { 
 		die "error: incorrect leverage (-1 <= lev <=20)";
+	}
+	
+	# decimal places for entries and targets (so can ignore leading zeros in low sat coins)
+	if (($noDecimalPlacesForEntriesTargetsAndSLs < 0) or ($noDecimalPlacesForEntriesTargetsAndSLs >10)) {
+		die "error: issue with the amount of decimal places";
 	}
 	
 	return $isTradeALong;
@@ -562,8 +599,9 @@ my $isTradeALong = checkValuesFromConfigFile($configHash{numberOfEntries},
 											$configHash{highTarget},
 											$configHash{lowTarget},
 											$configHash{stopLoss},
-											$configHash{leverage});
-
+											$configHash{leverage},
+											$configHash{noDecimalPlacesForEntriesTargetsAndSLs});
+											
 # old and simple way of using Cornix Free Text, generate a version of this too as well as the advanced template
 my @cornixTemplateSimple = createCornixFreeTextSimpleTemplate($configHash{coinPair},
 																	$configHash{leverage},
@@ -571,7 +609,8 @@ my @cornixTemplateSimple = createCornixFreeTextSimpleTemplate($configHash{coinPa
 																	$configHash{lowEntry},
 																	$configHash{highTarget},
 																	$configHash{lowTarget},
-																	$configHash{stopLoss});
+																	$configHash{stopLoss},
+																	$configHash{noDecimalPlacesForEntriesTargetsAndSLs});
 
 # create the advanced cornix template as an array of strings
 my @cornixTemplateAdvanced = createCornixFreeTextAdvancedTemplate($configHash{coinPair},
@@ -584,10 +623,11 @@ my @cornixTemplateAdvanced = createCornixFreeTextAdvancedTemplate($configHash{co
 													$configHash{highTarget},
 													$configHash{lowTarget},
 													$configHash{stopLoss},
+													$configHash{noDecimalPlacesForEntriesTargetsAndSLs},
 													$isTradeALong,
 													$weightingFactorEntries,
 													$weightingFactorTargets);
-
+													
 # print templates to screen
 say @cornixTemplateSimple;
 say @cornixTemplateAdvanced;
