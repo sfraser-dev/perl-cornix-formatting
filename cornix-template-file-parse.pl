@@ -32,7 +32,7 @@ sub createOutputFileName {
 	} else {
 		die "error: trade is neither a long nor a short";
 	}
-	$txtFile = "$dateWee-$pairNoSlash-$longOrShortStr\.txt";
+	$txtFile = "$dateWee-$pairNoSlash-$longOrShortStr\.trade";
 	return $txtFile;
 }
 
@@ -303,7 +303,6 @@ sub createCornixFreeTextAdvancedTemplate {
 	# amount of leverage to use (if any at all, "-1" means no leverage)
 	#if ($leverage >= 1) 		{ push (@template, "Leverage: Isolated ($leverage.0X)\n"); }
 	if ($leverage >= 1) 		{ push (@template, "Leverage: Cross ($leverage.0X)\n"); }
-	else 						{ die "error: cannot determine leverage for writing template"; }
 	
 	# entry targets
 	push (@template,"\n");
@@ -378,6 +377,7 @@ sub readTradeConfigFile {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
+			if ($val<1 ) { $val = 0; }	# no leverage wanted, don't include leverage line in the template 
 			$dataHash{leverage}=$val;
 		}
 		if ($line =~ m/numberOfEntries/) {
@@ -529,19 +529,30 @@ sub checkValuesFromConfigFile {
 # get command line arguments
 my %args;
 GetOptions( \%args,
-			'file=s', 	# filename
-			'ewf=s',	# entry weighting factor (override config file weighting factor)
-			'twf=s'		# target weighting factor (override config file weighting factor)
+			'file=s', 	# required: filename
+			'ewf=s',	# required: entries weighting factor
+			'twf=s',	# required: targets weighting factor
+			'aoe=s',	# optional: amount of entries (override config file number of entries)
+			'not=s'		# optional: number of targets (override config file number of targets)
           ) or die "Invalid command line arguments!";
 my $pathToFile = $args{file};
-my $weightingFactorEntries = $args{ewf};
-my $weightingFactorTargets = $args{twf};
-unless ($args{file}) 	{ die "Missing --file!\n"; }			# --file FileName
-unless ($args{ewf}) 	{ $weightingFactorEntries=0; }			# --ewf EntryWeightingFactor (for spreading percentages)
-unless ($args{twf}) 	{ $weightingFactorTargets=0; }			# --twf EntryWeightingFactor (for spreading percentages)
+my $weightingFactorEntries = $args{ewf};		# not in the trade config file
+my $weightingFactorTargets = $args{twf};		# not in the trade config file
+my $numberOfEntriesCommandLine = $args{aoe};	# in the config file, but override config file value if command line value given
+my $numberOfTargetsCommandLine = $args{not};	# in the config file, but override config file value if command line value given
+
+unless ($args{file}) 	{ die "Missing --file!\n"; }			# --file (-f) FileName 
+unless ($args{ewf}) 	{ $weightingFactorEntries=0; }			# --ewf  (-e) entries weighting factor (for spreading percentages)
+unless ($args{twf}) 	{ $weightingFactorTargets=0; }			# --twf  (-t) targets weighting factor (for spreading percentages)
+unless ($args{aoe}) 	{ $numberOfEntriesCommandLine=0; }		# --aoe  (-a) amount of entries 
+unless ($args{not}) 	{ $numberOfTargetsCommandLine=0; }		# --not  (-n) number of targets 
 
 # read trade file
 my %configHash = readTradeConfigFile($pathToFile);
+
+# if number of entries/targets is given on the command line, override the number of entries/targets given in the config file
+if ($numberOfEntriesCommandLine != 0) { $configHash{numberOfEntries} = $numberOfEntriesCommandLine; }
+if ($numberOfTargetsCommandLine != 0) { $configHash{numberOfTargets} = $numberOfTargetsCommandLine; }
 
 # check entries and targets make logical sense & determine if trade is a long or a short
 my $isTradeALong = checkValuesFromConfigFile($configHash{numberOfEntries},
