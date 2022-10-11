@@ -59,13 +59,13 @@ sub EvenDistribution {
 	my @entryOrTargetValsArr;
 	# put entries or targets in the correct order based on whether longing or shorting
 	if ($entriesOrTargets eq "entries") {
-		# long entries
+		# long entries (putting in "correct" order, long entries start high and get lower)
 		if ($isTradeALong == 1) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $high-($entryIncrement*$i));
 			}
 		}
-		# short entries
+		# short entries (putting in "correct" order, short entries start low and get higher)
 		elsif ($isTradeALong == 0) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
@@ -76,13 +76,13 @@ sub EvenDistribution {
 		}
 	}
 	elsif ($entriesOrTargets eq "targets") {
-		# long targets
+		# long targets (putting in "correct" order, long targets start low and get higher)
 		if ($isTradeALong == 1) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $low+($entryIncrement*$i));
 			}
 		}
-		# short targets
+		# short targets (putting in "correct" order, short targets start high and get lower)
 		elsif ($isTradeALong == 0) {
 			for(my $i=0; $i<$noOfEntriesOrTargetsWanted; $i++){
 				push (@entryOrTargetValsArr, $high-($entryIncrement*$i));
@@ -130,7 +130,7 @@ sub EvenDistribution {
 ############################################################################
 ############################################################################
 sub riskSofteningMultiplier {
-	# assumes advanced template entries are in the correct order (whether long or shorting)
+	# assumes advanced template entries are in the correct order (whether long or shorting), "EvenDistribution" sub does this
 	my @strArr=@{$_[0]}; 					# dereference the passed array
 	my $stopLoss=$_[1];
 	
@@ -144,9 +144,9 @@ sub riskSofteningMultiplier {
 	my $noCoinsObtainedAtThisEntry;
 	my $totalCoinsObtained=0;
 	
-	my $riskPercentageBasedOnEntry1;
 	my $avgEntryPrice;
 	my $riskPercentageBasedOnAvgEntry;
+	my $riskPercentageBasedOnEntry1;
 	my $riskSoftMult;
 	
 	# Assigns arbitary position value ($10000). Based on this, calc number of coins
@@ -169,8 +169,8 @@ sub riskSofteningMultiplier {
 	$avgEntryPrice = $arbitraryPositionValue / $totalCoinsObtained;
 	$riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;
 	$riskSoftMult = $riskPercentageBasedOnAvgEntry / $riskPercentageBasedOnEntry1;
-	
-	return $riskSoftMult;
+
+	return ($riskSoftMult, $riskPercentageBasedOnEntry1);
 }
 
 ############################################################################
@@ -180,13 +180,13 @@ sub HeavyWeightingAtEntryOrStoploss {
 	my $noOfEntries=$_[1];
 	my $high=$_[2];
 	my $low=$_[3];
-	my $tradeTypeIn=$_[4];
+	my $isTradeALong=$_[4];
 	my $weightingFactor=$_[5];
 	my $noDecimalPlacesForEntriesTargetsAndSLs=$_[6];
 	my @strArr;
 	
 	# run EvenDistribution calculation first
-	@strArr = EvenDistribution($entriesOrTargetsStr,$noOfEntries,$high,$low,$tradeTypeIn,$noDecimalPlacesForEntriesTargetsAndSLs);
+	@strArr = EvenDistribution($entriesOrTargetsStr,$noOfEntries,$high,$low,$isTradeALong,$noDecimalPlacesForEntriesTargetsAndSLs);
 	
 	# get the percentages from @strArr
 	my @percentages;
@@ -306,6 +306,7 @@ sub createCornixFreeTextAdvancedTemplate {
 	my @strArr;
 	my $strRead;
 	my $riskSoftMult;
+	my $riskPercentageBasedOnEntry1;
 		
 	push (@template, "########################### advanced template\n");
 	
@@ -331,8 +332,9 @@ sub createCornixFreeTextAdvancedTemplate {
 	foreach $strRead (@strArr) {
 		push(@template,$strRead);
 	}
-	$riskSoftMult = riskSofteningMultiplier(\@strArr, $stopLoss); # passing array as reference
-
+	
+	($riskSoftMult, $riskPercentageBasedOnEntry1) = riskSofteningMultiplier(\@strArr, $stopLoss); # passing array as reference
+	
 	# take profit targets
 	push (@template,"\n");
 	push (@template,"Take-Profit Targets:\n");
@@ -355,7 +357,8 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
 	push (@template,"$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n\n");
 	
-	push (@template, "########################### risk softening multiplier\n$riskSoftMult\n");
+	push (@template, "########################### risk based on entry 1\n$riskPercentageBasedOnEntry1\n\n");
+	push (@template, "########################### risk softening multiplier\n$riskSoftMult\n\n");
 	
 	return @template;
 }
