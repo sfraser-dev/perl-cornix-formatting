@@ -170,7 +170,7 @@ sub riskSofteningMultiplier {
 	$riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;
 	$riskSoftMult = $riskPercentageBasedOnAvgEntry / $riskPercentageBasedOnEntry1;
 
-	return ($riskSoftMult, $riskPercentageBasedOnEntry1);
+	return ($riskSoftMult, $riskPercentageBasedOnEntry1,$riskPercentageBasedOnAvgEntry);
 }
 
 ############################################################################
@@ -299,14 +299,15 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $lowTarget = $_[8];
 	my $stopLoss = $_[9];
 	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[10];
-	my $isTradeALong = $_[11];
-	my $weightingFactorEntries = $_[12];
-	my $weightingFactorTargets = $_[13];
+	my $wantedToRiskAmount = $_[11];
+	my $isTradeALong = $_[12];
+	my $weightingFactorEntries = $_[13];
+	my $weightingFactorTargets = $_[14];
 	my @template;
-	my @strArr;
 	my $strRead;
 	my $riskSoftMult;
 	my $riskPercentageBasedOnEntry1;
+	my $riskPercentageBasedOnAvgEntry;
 		
 	push (@template, "########################### advanced template\n");
 	
@@ -328,21 +329,18 @@ sub createCornixFreeTextAdvancedTemplate {
 	# entry targets
 	push (@template,"\n");
 	push (@template,"Entry Targets:\n");
-	@strArr = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorEntries,$noDecimalPlacesForEntriesTargetsAndSLs);
-	foreach $strRead (@strArr) {
+	my @strArrEntries = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorEntries,$noDecimalPlacesForEntriesTargetsAndSLs);
+	foreach $strRead (@strArrEntries) {
 		push(@template,$strRead);
 	}
-	
-	($riskSoftMult, $riskPercentageBasedOnEntry1) = riskSofteningMultiplier(\@strArr, $stopLoss); # passing array as reference
 	
 	# take profit targets
 	push (@template,"\n");
 	push (@template,"Take-Profit Targets:\n");
-	@strArr = HeavyWeightingAtEntryOrStoploss("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong,$weightingFactorTargets,$noDecimalPlacesForEntriesTargetsAndSLs);
-	foreach $strRead (@strArr) {
+	my @strArrTargets = HeavyWeightingAtEntryOrStoploss("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong,$weightingFactorTargets,$noDecimalPlacesForEntriesTargetsAndSLs);
+	foreach $strRead (@strArrTargets) {
 		push(@template,$strRead);
 	}
-
 
 	# stop-loss
 	my $sl = formatToVariableNumberOfDecimalPlaces($stopLoss, $noDecimalPlacesForEntriesTargetsAndSLs);
@@ -357,8 +355,20 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
 	push (@template,"$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n\n");
 	
-	push (@template, "########################### risk based on entry 1\n$riskPercentageBasedOnEntry1\n\n");
-	push (@template, "########################### risk softening multiplier\n$riskSoftMult\n\n");
+	# risk percentages and position size (risked amount is based on entry and stop-loss)
+	($riskSoftMult,$riskPercentageBasedOnEntry1,$riskPercentageBasedOnAvgEntry) = riskSofteningMultiplier(\@strArrEntries, $stopLoss); # passing array as reference
+	my $positionSizeEntry1 = $wantedToRiskAmount/$riskPercentageBasedOnEntry1;
+	my $positionSizeAverageEntry = $wantedToRiskAmount/$riskPercentageBasedOnAvgEntry;
+	my $tempEnt1 = "########################### risk based only on entry 1\nriskPercentageBasedOnEntry1 = $riskPercentageBasedOnEntry1\n";
+	my $tempEnt2 = "riskSoftMult = $riskSoftMult\n";
+	my $tempEnt3 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n\n";
+	my $tempEnt4 = $tempEnt1.$tempEnt2.$tempEnt3;
+	my $tempTar1 = "########################### risk based on average entry\n";
+	my $tempTar2 = "riskPercentageBasedOnAvgEntry = $riskPercentageBasedOnAvgEntry\n";
+	my $tempTar3 = "position size of \$".sprintf("%.2f",$positionSizeAverageEntry)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n\n";
+	my $tempTar4 = $tempTar1.$tempTar2.$tempTar3;
+	push (@template, $tempEnt4); 
+	push (@template, $tempTar4);
 	
 	return @template;
 }
@@ -378,7 +388,8 @@ sub readTradeConfigFile {
 					'numberOfTargets' => 0,
 					'lowTarget' => 0,
 					'highTarget' => 0,
-					'noDecimalPlacesForEntriesTargetsAndSLs' => 0
+					'noDecimalPlacesForEntriesTargetsAndSLs' => 0,
+					'wantedToRiskAmount' => 999999
 				);
 	open my $info, $pathToFile or die "Could not open $pathToFile: $!";
 	while( my $line = <$info>) { 
@@ -454,6 +465,12 @@ sub readTradeConfigFile {
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{noDecimalPlacesForEntriesTargetsAndSLs}=$val;
 		}
+		if ($line =~ m/wantedToRiskAmount/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
+			$dataHash{wantedToRiskAmount}=$val;
+		}
 	}
 	close $info;
 	return %dataHash;
@@ -524,6 +541,7 @@ sub checkValuesFromConfigFile {
 	my $stopLoss = $_[6];
 	my $leverage = $_[7];
 	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[8];
+	my $wantedToRiskAmount = $_[9];
 
 	# number of entries should be between 1 and 10 (Cornix free text maximum is 10)
 	if (($noOfEntries<1) or ($noOfEntries>10)) { die "\nerror: noOfEntries should be 10 or less, \n"; }
@@ -564,6 +582,9 @@ sub checkValuesFromConfigFile {
 		die "error: issue with the amount of decimal places";
 	}
 	
+	# the risked amount
+	if ($wantedToRiskAmount <= 0) { die "\nerror: wantedToRiskAmount is <= 0\n"; }
+	
 	return $isTradeALong;
 }
 
@@ -600,15 +621,17 @@ if ($numberOfEntriesCommandLine != 0) { $configHash{numberOfEntries} = $numberOf
 if ($numberOfTargetsCommandLine != 0) { $configHash{numberOfTargets} = $numberOfTargetsCommandLine; }
 
 # check entries and targets make logical sense & determine if trade is a long or a short
-my $isTradeALong = checkValuesFromConfigFile($configHash{numberOfEntries},
-											$configHash{numberOfTargets},
-											$configHash{highEntry},
-											$configHash{lowEntry},
-											$configHash{highTarget},
-											$configHash{lowTarget},
-											$configHash{stopLoss},
-											$configHash{leverage},
-											$configHash{noDecimalPlacesForEntriesTargetsAndSLs});
+my $isTradeALong = checkValuesFromConfigFile(	$configHash{numberOfEntries},
+												$configHash{numberOfTargets},
+												$configHash{highEntry},
+												$configHash{lowEntry},
+												$configHash{highTarget},
+												$configHash{lowTarget},
+												$configHash{stopLoss},
+												$configHash{leverage},
+												$configHash{noDecimalPlacesForEntriesTargetsAndSLs},
+												$configHash{wantedToRiskAmount}
+											);
 											
 # old and simple way of using Cornix Free Text, generate a version of this too as well as the advanced template
 my @cornixTemplateSimple = createCornixFreeTextSimpleTemplate($configHash{coinPair},
@@ -632,6 +655,7 @@ my @cornixTemplateAdvanced = createCornixFreeTextAdvancedTemplate($configHash{co
 													$configHash{lowTarget},
 													$configHash{stopLoss},
 													$configHash{noDecimalPlacesForEntriesTargetsAndSLs},
+													$configHash{wantedToRiskAmount},
 													$isTradeALong,
 													$weightingFactorEntries,
 													$weightingFactorTargets);
