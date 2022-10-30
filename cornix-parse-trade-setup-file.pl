@@ -459,7 +459,7 @@ sub readTradeConfigFile {
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{highTarget}=$val;
 		}
-		if ($line =~ m/decimalPlaces/) { 
+		if ($line =~ m/numDecimalPlacesForCoinPrices/) { 
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
