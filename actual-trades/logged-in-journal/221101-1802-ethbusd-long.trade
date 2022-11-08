@@ -1,0 +1,49 @@
+########################### simple template
+eth/busd
+enter 1575.0000 1557.7000
+stop 1530.1900
+targets 1660.0000 1790.0000
+
+########################### advanced template
+eth/busd
+Client: SF BinSpot (main)
+Trade Type: Regular (Long)
+
+Entry Targets:
+1) 1575.0000 - 19.00%
+2) 1566.3500 - 33.00%
+3) 1557.7000 - 48.00%
+
+Take-Profit Targets:
+1) 1660.0000 - 16.00%
+2) 1674.4444 - 14.80%
+3) 1688.8889 - 13.60%
+4) 1703.3333 - 12.40%
+5) 1717.7778 - 11.20%
+6) 1732.2222 - 8.80%
+7) 1746.6667 - 7.60%
+8) 1761.1111 - 6.40%
+9) 1775.5556 - 5.20%
+10) 1790.0000 - 4.00%
+
+Stop Targets:
+1) 1530.1900 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk based only on entry 1
+riskPercentageBasedOnEntry1 = 0.0284507936507936
+riskSoftMult = 0.755725321936721
+position size of $1054.45 is needed to risk $30.00
+
+########################### risk based on average entry
+riskPercentageBasedOnAvgEntry = 0.0215009851911012
+position size of $1395.28 is needed to risk $30.00
+
+mq 40/3 avgEnt colBlueBiggy H4
+https://www.tradingview.com/x/FlJDIT4u/
+RESULT-21: https://www.tradingview.com/x/uDQ7H1L8/

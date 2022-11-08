@@ -1,0 +1,36 @@
+########################### simple template
+BNB/BUSD
+enter 279 272
+stop 262
+targets 307 334
+
+########################### advanced template
+BNB/BUSD
+Client: SF BinSpot (main)
+Trade Type: Regular (Long)
+
+Entry Targets:
+1) 279.00000 - 21.00%
+2) 276.66667 - 23.00%
+3) 274.33333 - 27.00%
+4) 272.00000 - 29.00%
+
+Take-Profit Targets:
+1) 307.00000 - 38.00%
+2) 334.00000 - 62.00%
+
+Stop Targets:
+1) 262 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk softening multiplier
+0.784297750530088
+
+kidea 50/4 colBlueWHITE D1
+https://www.tradingview.com/x/4WRNlV5R/
+RESULT-39: https://www.tradingview.com/x/hvs0nK5J/

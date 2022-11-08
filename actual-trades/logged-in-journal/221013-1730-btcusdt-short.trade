@@ -1,0 +1,41 @@
+########################### simple template
+btc/usdt
+leverage cross 4x
+enter 19100.0000 18970.0000
+stop 19400.0000
+targets 16000.0000 17500.0000
+
+########################### advanced template
+btc/usdt
+Client: SF Bybit Contract LinUSDT (main) 281121
+Trade Type: Regular (Short)
+Leverage: Cross (4.0X)
+
+Entry Targets:
+1) 18970.0000 - 19.00%
+2) 19013.3333 - 22.00%
+3) 19056.6667 - 28.00%
+4) 19100.0000 - 31.00%
+
+Take-Profit Targets:
+1) 17500.0000 - 66.00%
+2) 16000.0000 - 34.00%
+
+Stop Targets:
+1) 19400.0000 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk based on entry 1
+0.0226673695308382
+
+########################### risk softening multiplier
+0.824734742032513
+
+lomaCopy 50/4 bybitPrincipal H4 (loma no chart)
+https://www.tradingview.com/x/Jtb0LOxC/
+result-42: https://www.tradingview.com/x/yQdFSeBC/

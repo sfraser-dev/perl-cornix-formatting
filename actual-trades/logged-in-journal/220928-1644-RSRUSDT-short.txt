@@ -1,0 +1,44 @@
+########################### simple template
+RSR/USDT
+leverage cross 4x
+enter 0.00870 0.00855
+stop 0.00890
+targets 0.00760 0.00810
+
+########################### advanced template
+RSR/USDT
+Client: SF Bybit Contract LinUSDT (main) 281121
+Trade Type: Regular (Short)
+Leverage: Cross (4.0X)
+
+Entry Targets:
+1) 0.00855 - 7.50%
+2) 0.00857 - 8.00%
+3) 0.00858 - 8.50%
+4) 0.00860 - 9.00%
+5) 0.00862 - 9.50%
+6) 0.00863 - 10.50%
+7) 0.00865 - 11.00%
+8) 0.00867 - 11.50%
+9) 0.00868 - 12.00%
+10) 0.00870 - 12.50%
+
+Take-Profit Targets:
+1) 0.00810 - 50%
+2) 0.00760 - 50%
+
+Stop Targets:
+1) 0.00890 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk softening multiplier
+0.756705884033499
+
+lomaIdea 30/10 colBlueWHITE H1
+https://www.tradingview.com/x/i3mbYqkn/
+RESULT+32: https://www.tradingview.com/x/fJbQUQ5V/

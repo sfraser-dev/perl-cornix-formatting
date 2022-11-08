@@ -1,0 +1,49 @@
+########################### simple template
+sol/busd
+enter 32.8400 31.7500
+stop 31.2700
+targets 39.0300 47.1000
+
+########################### advanced template
+sol/busd
+Client: SF BinSpot (main)
+Trade Type: Regular (Long)
+
+Entry Targets:
+1) 32.8400 - 19.00%
+2) 32.2950 - 33.00%
+3) 31.7500 - 48.00%
+
+Take-Profit Targets:
+1) 39.0300 - 16.00%
+2) 39.9267 - 14.80%
+3) 40.8233 - 13.60%
+4) 41.7200 - 12.40%
+5) 42.6167 - 11.20%
+6) 43.5133 - 8.80%
+7) 44.4100 - 7.60%
+8) 45.3067 - 6.40%
+9) 46.2033 - 5.20%
+10) 47.1000 - 4.00%
+
+Stop Targets:
+1) 31.2700 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk based only on entry 1
+riskPercentageBasedOnEntry1 = 0.047807551766139
+riskSoftMult = 0.56087133320958
+position size of $836.69 is needed to risk $40.00
+
+########################### risk based on average entry
+riskPercentageBasedOnAvgEntry = 0.0268138852965604
+position size of $1491.76 is needed to risk $40.00
+
+cbsIdeaLomaLevels 40/3 ent1 colBluLight H4
+https://www.tradingview.com/x/FgVUb85Z/
+RESULT-22: https://www.tradingview.com/x/V2RHSRgI/

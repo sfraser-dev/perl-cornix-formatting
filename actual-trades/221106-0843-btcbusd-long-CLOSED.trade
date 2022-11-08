@@ -1,0 +1,54 @@
+########################### simple template
+btc/busd
+enter 20939.000 20690.000
+stop 20487.000
+targets 21442.000 23360.000
+
+########################### advanced template
+btc/busd
+Client: SF BinSpot (main)
+Trade Type: Regular (Long)
+
+Entry Targets:
+1) 20939.000 - 3.00%
+2) 20903.429 - 5.50%
+3) 20867.857 - 8.00%
+4) 20832.286 - 10.50%
+5) 20796.714 - 14.50%
+6) 20761.143 - 17.00%
+7) 20725.571 - 19.50%
+8) 20690.000 - 22.00%
+
+Take-Profit Targets:
+1) 21442.000 - 12.00%
+2) 21655.111 - 11.60%
+3) 21868.222 - 11.20%
+4) 22081.333 - 10.80%
+5) 22294.444 - 10.40%
+6) 22507.556 - 9.60%
+7) 22720.667 - 9.20%
+8) 22933.778 - 8.80%
+9) 23146.889 - 8.40%
+10) 23360.000 - 8.00%
+
+Stop Targets:
+1) 20487.000 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk based only on entry 1
+riskPercentageBasedOnEntry1 = 0.0215865132050241
+riskSoftMult = 0.637019876644745
+position size of $1389.76 is needed to risk $30.00
+
+########################### risk based on average entry
+riskPercentageBasedOnAvgEntry = 0.0137510379790546
+position size of $2181.65 is needed to risk $30.00
+
+pIdea 30/8 ent1 BIGGY-DARK-Bitstamp H4
+https://www.tradingview.com/x/qFEwvjVI/
+RESULT-BE: https://www.tradingview.com/x/Peb69io8/

@@ -1,0 +1,44 @@
+########################### simple template
+chz/busd
+enter 0.23615 0.22965
+stop 0.22340
+targets 0.25025 0.27465
+
+########################### advanced template
+chz/busd
+Client: SF BinSpot (main)
+Trade Type: Regular (Long)
+
+Entry Targets:
+1) 0.23615 - 15.50%
+2) 0.23452 - 17.75%
+3) 0.23290 - 20.00%
+4) 0.23128 - 22.25%
+5) 0.22965 - 24.50%
+
+Take-Profit Targets:
+1) 0.25025 - 35.20%
+2) 0.26245 - 33.00%
+3) 0.27465 - 31.80%
+
+Stop Targets:
+1) 0.22340 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk based only on entry 1
+riskPercentageBasedOnEntry1 = 0.0539911073470252
+riskSoftMult = 0.72588951600402
+position size of $740.86 is needed to risk $40.00
+
+########################### risk based on average entry
+riskPercentageBasedOnAvgEntry = 0.0391915787806532
+position size of $1020.63 is needed to risk $40.00
+
+mqPCfa 40/5 entAvg colBlueDARK H4
+https://www.tradingview.com/x/w2HsWaFA/
+RESULT+92: https://www.tradingview.com/x/vRnI2OFI/

@@ -1,0 +1,48 @@
+########################### simple template
+eth/usdt
+leverage cross 3x
+enter 1568.0000 1550.0000
+stop 1595.0000
+targets 1455.0000 1500.0000
+
+########################### advanced template
+eth/usdt
+Client: SF Bybit Contract LinUSDT (main) 281121
+Trade Type: Regular (Short)
+Leverage: Cross (3.0X)
+
+Entry Targets:
+1) 1550.0000 - 17.00%
+2) 1554.5000 - 18.50%
+3) 1559.0000 - 20.00%
+4) 1563.5000 - 21.50%
+5) 1568.0000 - 23.00%
+
+Take-Profit Targets:
+1) 1500.0000 - 24.00%
+2) 1488.7500 - 22.00%
+3) 1477.5000 - 20.00%
+4) 1466.2500 - 18.00%
+5) 1455.0000 - 16.00%
+
+Stop Targets:
+1) 1595.0000 - 100%
+
+Trailing Configuration:
+Entry: Percentage (0.0%)
+Take-Profit: Percentage (0.0%)
+Stop: Breakeven -
+ Trigger: Target (1)
+
+########################### risk based only on entry 1
+riskPercentageBasedOnEntry1 = 0.0290322580645161
+riskSoftMult = 0.780710671203038
+position size of $1377.78 is needed to risk $40.00
+
+########################### risk based on average entry
+riskPercentageBasedOnAvgEntry = 0.0226657936800882
+position size of $1764.77 is needed to risk $40.00
+
+pIdea 40/5 ent1 colBlueLIGHT H4
+https://www.tradingview.com/x/QAuQBUKt/
+RESULT-31: https://www.tradingview.com/x/ejgkHbwu/
