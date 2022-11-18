@@ -131,46 +131,31 @@ sub EvenDistribution {
 ############################################################################
 sub riskSofteningMultiplier {
 	# assumes advanced template entries are in the correct order (whether long or shorting), "EvenDistribution" sub does this
-	my @strArr=@{$_[0]}; 					# dereference the passed array
+	my @strArrEnts=@{$_[0]}; 					# dereference the passed array
 	my $stopLoss=$_[1];
 	
-	my @splitter;
-	my $entryPrice;
-	my $firstEntryPrice = 0;
-	my $percentage;
-	
-	my $arbitraryPositionValue = 10000;		# copy how calculated on spreadsheet
-	my $amountSpentAtThisEntry;
-	my $noCoinsObtainedAtThisEntry;
-	my $totalCoinsObtained=0;
-	
+	my $numEntriesHit = scalar(@strArrEnts);
+	my $firstEntryPrice;
 	my $avgEntryPrice;
-	my $riskPercentageBasedOnAvgEntry;
-	my $riskPercentageBasedOnEntry1;
-	my $riskSoftMult;
+	my $percentageOfPosSizeBought;
+	($firstEntryPrice,$avgEntryPrice,$percentageOfPosSizeBought) = calcAverageEntryPriceForVariableEntriesHit(\@strArrEnts,$numEntriesHit);
 	
-	# Assigns arbitary position value ($10000). Based on this, calc number of coins
-	# bought at each entry point (based on target entry price and assigned percentage)
-	for my $i (0 .. $#strArr) {
-		# get the values and percentages from the Cornix Entry Tragets: string array 
-		@splitter=split / /, $strArr[$i];	# split line using spaces, [0]=1), [1]=value, [2]=hyphen, [3]=percentage
-		$entryPrice = $splitter[1];
-		if ($i == 0) { $firstEntryPrice = $entryPrice; }
-		$percentage = ($splitter[3]);
-		$percentage =~ s/%//g;				# remove percentage sign
-		$percentage /= 100;					# percenatge as decimal
-		
-		# calculate the risk softening multiplier
-		$amountSpentAtThisEntry = $arbitraryPositionValue * $percentage;
-		$noCoinsObtainedAtThisEntry = $amountSpentAtThisEntry / $entryPrice;
-		$totalCoinsObtained += $noCoinsObtainedAtThisEntry;		
-	}
-	$riskPercentageBasedOnEntry1 = (abs($firstEntryPrice-$stopLoss))/$firstEntryPrice;
-	$avgEntryPrice = $arbitraryPositionValue / $totalCoinsObtained;
-	$riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;
-	$riskSoftMult = $riskPercentageBasedOnAvgEntry / $riskPercentageBasedOnEntry1;
+	# calculate risk percentatge based on just the first entry (entry1), risk percentage based on average entry and a
+	# risk-softening-multiplier (the risk-softening-multiplier is just for entry1 calculation)
+	#
+	# What is risk-softening-multiplier? I would use TradingView's RR tool to get the SL distance from the FIRST entry;
+	# I would then use this risk percentage to calculate my total position size. When I started layering multiple bids below
+	# the FirstEntry, I kept using ONLY the first entry to calcualte my risk - my risk WASN'T this much as I would have an average
+	# bid entry below this due to layering my bids. The risk-softening-multiplier accounts for this. If I wanted to risk $100 on 
+	# a trade and used only the first entry to calculate this risk (but actually had layered bids), my risk-softening-multiplier
+	# might be something like 0.75, thus my actual risk would only be $100*0.75 = $75. I never used to layer bids so this was a simple
+	# way for me implement it initially - easy for me to update my journal properly and quickly if I calcualed my risk using only
+	# the first entry but actually had layered bids.
+	my $riskPercentageBasedOnEntry1 = (abs($firstEntryPrice-$stopLoss))/$firstEntryPrice;
+	my $riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;
+	my $riskSoftMult = $riskPercentageBasedOnAvgEntry / $riskPercentageBasedOnEntry1;
 
-	return ($riskSoftMult, $riskPercentageBasedOnEntry1,$riskPercentageBasedOnAvgEntry);
+	return ($riskSoftMult, $riskPercentageBasedOnEntry1,$riskPercentageBasedOnAvgEntry);	
 }
 
 ############################################################################
@@ -370,7 +355,98 @@ sub createCornixFreeTextAdvancedTemplate {
 	push (@template, $tempEnt4); 
 	push (@template, $tempTar4);
 	
+	fixedRiskDynamicPositionSize(\@strArrEntries,$stopLoss,$positionSizeEntry1,$positionSizeAverageEntry,$wantedToRiskAmount); # passing arrays as references
+	
 	return @template;
+}
+
+############################################################################
+############################################################################
+sub calcAverageEntryPriceForVariableEntriesHit {
+	my @strArrEnts=@{$_[0]}; 						# dereference the passed array
+	my $numOfEntriesToUseForCalculation=$_[1];
+	
+	# Assigns arbitary position value for ease of claculation. Based on this arbitary position value, calc number of coins
+	# bought at each entry point (using entry price & assigned percentage of position size). Keep a running total of amount of
+	# coins bought and a running total paid for these coins (total paid will be the full arbitary value *IF* all entry targets hit).
+	# If not all entry targets hit, it will be a different total amount paid.
+	# Note: the amount used for the arbitary position value doesn't matter, it'll give the same result
+	my $arbitraryPositionValue = 100000;
+	my $totalNumberCoinsBought = 0;
+	my $totalAmountPaidForCoins = 0;
+	my $firstEntryPrice;
+	my $totalPercentageOfPositionSizeBought = 0;
+	
+	for my $i (0 .. ($numOfEntriesToUseForCalculation-1)) {
+		# get the values and percentages from the Cornix Entry Tragets: string array 
+		my @splitter=split / /, $strArrEnts[$i];	# split line using spaces, [0]=1), [1]=value, [2]=hyphen, [3]=percentage
+		my $entryPrice = $splitter[1];
+		if ($i == 0) { $firstEntryPrice = $entryPrice; }
+		my $percentage = ($splitter[3]);
+		$percentage =~ s/%//g;						# remove percentage sign
+		$percentage /= 100;							# percenatge as decimal
+		$totalPercentageOfPositionSizeBought += $percentage;
+		
+		# calculate "number of coins obtained" at this entry and percentage (using arbitary position size same as spreadsheet)
+		my $amountSpentAtThisEntryPoint =  $arbitraryPositionValue * $percentage;
+		my $numberCoinsBoughtAtThisEntryPoint = $amountSpentAtThisEntryPoint / $entryPrice;
+		$totalAmountPaidForCoins += $amountSpentAtThisEntryPoint;
+		$totalNumberCoinsBought += $numberCoinsBoughtAtThisEntryPoint;
+	}
+	my $averageEntryPrice = $totalAmountPaidForCoins / $totalNumberCoinsBought;
+		
+	return ($firstEntryPrice, $averageEntryPrice, $totalPercentageOfPositionSizeBought);
+}
+
+############################################################################
+############################################################################
+sub fixedRiskDynamicPositionSize {
+	my @strArrEnts=@{$_[0]}; 						# dereference the passed array
+	my $stopLoss=$_[1];
+	my $posSizeEntry1=$_[2];
+	my $posSizeAvgEnt=$_[3];
+	my $wantedToRiskAmount=$_[4];
+
+	my $NEW_ENTRY_VAL = 1.33;	## TEST TEST
+	my $NEW_NUM_ENTS_HIT = 3;	## TEST TEST
+	
+	my $firstEntryPrice;
+	my $avgEntryPrice;
+	my $percentageOfPosSizeBought;
+	($firstEntryPrice,$avgEntryPrice,$percentageOfPosSizeBought) = calcAverageEntryPriceForVariableEntriesHit(\@strArrEnts,$NEW_NUM_ENTS_HIT);
+											
+	my $riskPercentageBasedOnEntry1 = (abs($firstEntryPrice-$stopLoss))/$firstEntryPrice;
+	my $riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;										
+	my $riskPercentage_new_frdps = (abs($NEW_ENTRY_VAL-$stopLoss))/$NEW_ENTRY_VAL;	
+
+	my $riskedAmount_ent1 = $posSizeEntry1 * $percentageOfPosSizeBought * $riskPercentageBasedOnEntry1;
+	my $newAmountToRisk_ent1 = $wantedToRiskAmount - $riskedAmount_ent1;
+	my $newPositionSize_ent1 = $newAmountToRisk_ent1 / $riskPercentage_new_frdps;
+	
+	my $riskedAmount_avgEnt = $posSizeAvgEnt * $percentageOfPosSizeBought * $riskPercentageBasedOnAvgEntry;
+	my $newAmountToRisk_avgEnt = $wantedToRiskAmount - $riskedAmount_avgEnt;
+	my $newPositionSize_avgEnt = $newAmountToRisk_avgEnt / $riskPercentage_new_frdps;
+	
+	say"--------------------------------";
+	say"firstEntryPrice=$firstEntryPrice";
+	say"avgEntryPrice=$avgEntryPrice";
+	my $TEMP_percentageOfPosSizeBought = $percentageOfPosSizeBought * 100;									
+	say"percentageOfPosSizeBought=$TEMP_percentageOfPosSizeBought\%";
+	say"--";
+	say"wantedToRiskAmount=\$$wantedToRiskAmount";
+	say"riskPercentage_new_frdps=$riskPercentage_new_frdps";
+	say"-- ent1";
+	say"actually riskedAmount_ent1=\$$riskedAmount_ent1";
+	say"riskPercentageBasedOnEntry1=$riskPercentageBasedOnEntry1";
+	say"newAmountToRisk_ent1=\$$newAmountToRisk_ent1";
+	say"newPositionSize_ent1=\$$newPositionSize_ent1";
+	say"-- avgEnt";
+	say"actually riskedAmountAvgEnt=\$$riskedAmount_avgEnt";
+	say"riskPercentageBasedOnAvgEntry=$riskPercentageBasedOnAvgEntry";
+	say"newAmountToRisk_avgEnt=\$$newAmountToRisk_avgEnt";
+	say"newPositionSize_avgEnt=\$$newPositionSize_avgEnt";
+	
+	
 }
 
 ############################################################################
