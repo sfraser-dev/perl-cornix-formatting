@@ -410,43 +410,47 @@ sub fixedRiskDynamicPositionSize {
 	my $NEW_ENTRY_VAL = 1.33;	## TEST TEST
 	my $NEW_NUM_ENTS_HIT = 3;	## TEST TEST
 	
-	my $firstEntryPrice;
-	my $avgEntryPrice;
-	my $percentageOfPosSizeBought;
-	($firstEntryPrice,$avgEntryPrice,$percentageOfPosSizeBought) = calcAverageEntryPriceForVariableEntriesHit(\@strArrEnts,$NEW_NUM_ENTS_HIT);
-											
-	my $riskPercentageBasedOnEntry1 = (abs($firstEntryPrice-$stopLoss))/$firstEntryPrice;
-	my $riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;										
-	my $riskPercentage_new_frdps = (abs($NEW_ENTRY_VAL-$stopLoss))/$NEW_ENTRY_VAL;	
-
-	my $riskedAmount_ent1 = $posSizeEntry1 * $percentageOfPosSizeBought * $riskPercentageBasedOnEntry1;
-	my $newAmountToRisk_ent1 = $wantedToRiskAmount - $riskedAmount_ent1;
-	my $newPositionSize_ent1 = $newAmountToRisk_ent1 / $riskPercentage_new_frdps;
-	
-	my $riskedAmount_avgEnt = $posSizeAvgEnt * $percentageOfPosSizeBought * $riskPercentageBasedOnAvgEntry;
-	my $newAmountToRisk_avgEnt = $wantedToRiskAmount - $riskedAmount_avgEnt;
-	my $newPositionSize_avgEnt = $newAmountToRisk_avgEnt / $riskPercentage_new_frdps;
-	
-	say"--------------------------------";
-	say"firstEntryPrice=$firstEntryPrice";
-	say"avgEntryPrice=$avgEntryPrice";
-	my $TEMP_percentageOfPosSizeBought = $percentageOfPosSizeBought * 100;									
-	say"percentageOfPosSizeBought=$TEMP_percentageOfPosSizeBought\%";
-	say"--";
-	say"wantedToRiskAmount=\$$wantedToRiskAmount";
-	say"riskPercentage_new_frdps=$riskPercentage_new_frdps";
-	say"-- ent1";
-	say"actually riskedAmount_ent1=\$$riskedAmount_ent1";
-	say"riskPercentageBasedOnEntry1=$riskPercentageBasedOnEntry1";
-	say"newAmountToRisk_ent1=\$$newAmountToRisk_ent1";
-	say"newPositionSize_ent1=\$$newPositionSize_ent1";
-	say"-- avgEnt";
-	say"actually riskedAmountAvgEnt=\$$riskedAmount_avgEnt";
-	say"riskPercentageBasedOnAvgEntry=$riskPercentageBasedOnAvgEntry";
-	say"newAmountToRisk_avgEnt=\$$newAmountToRisk_avgEnt";
-	say"newPositionSize_avgEnt=\$$newPositionSize_avgEnt";
-	
-	
+	my @dataEnt1;
+	my @dataAvgEnt;
+	my $numEntriesToProcess = scalar(@strArrEnts);
+	for my $i (1 .. $numEntriesToProcess) {
+		my $firstEntryPrice;
+		my $avgEntryPrice;
+		my $percentageOfPosSizeBought;
+		($firstEntryPrice,$avgEntryPrice,$percentageOfPosSizeBought) = calcAverageEntryPriceForVariableEntriesHit(\@strArrEnts,$i);
+		
+		# calculate current risk percentage based on hit entries and stop-loss
+		my $riskPercentageBasedOnEntry1 = (abs($firstEntryPrice-$stopLoss))/$firstEntryPrice;
+		my $riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;
+		# calculate new risk percentage based on adding to position at the current price (not moving stop-loss)
+		my $riskPercentage_new_frdps = (abs($NEW_ENTRY_VAL-$stopLoss))/$NEW_ENTRY_VAL;	
+		# entry1-only: calculate the new position size required of fixed risk dynamic position sizing
+		my $riskedAmount_ent1 = $posSizeEntry1 * $percentageOfPosSizeBought * $riskPercentageBasedOnEntry1;
+		my $newAmountToRisk_ent1 = $wantedToRiskAmount - $riskedAmount_ent1;
+		my $newPositionSize_ent1 = $newAmountToRisk_ent1 / $riskPercentage_new_frdps;
+		# average-entry: calculate the new position size required of fixed risk dynamic position sizing
+		my $riskedAmount_avgEnt = $posSizeAvgEnt * $percentageOfPosSizeBought * $riskPercentageBasedOnAvgEntry;
+		my $newAmountToRisk_avgEnt = $wantedToRiskAmount - $riskedAmount_avgEnt;
+		my $newPositionSize_avgEnt = $newAmountToRisk_avgEnt / $riskPercentage_new_frdps;
+		# entry1-only: output the data
+		my $currentTotalRisk_ent1 = $riskedAmount_ent1 + $newAmountToRisk_ent1;
+		my $e1=sprintf("%dentriesHit: currentRisk=\$%.0f, newPosSize \$%.0f ",$i,$riskedAmount_ent1,$newPositionSize_ent1);
+		my $e2=sprintf("at price \$%.4f adds \$%.0f of risk (totalRisk now \$%.0f, ",$NEW_ENTRY_VAL,$newAmountToRisk_ent1,$currentTotalRisk_ent1);
+		my $e3=sprintf("SL=\$%.4f)\n",$stopLoss);
+		my $e4=$e1.$e2.$e3;
+		push(@dataEnt1,$e4);
+		# average-entry: output the data
+		my $currentTotalRisk_avgEnt = $riskedAmount_avgEnt + $newAmountToRisk_avgEnt;
+		my $a1=sprintf("%dentriesHit: currentRisk=\$%.0f, newPosSize \$%.0f ",$i,$riskedAmount_avgEnt,$newPositionSize_avgEnt);
+		my $a2=sprintf("at price \$%.4f adds \$%.0f of risk (totalRisk now \$%.0f, ",$NEW_ENTRY_VAL,$newAmountToRisk_avgEnt,$currentTotalRisk_avgEnt);
+		my $a3=sprintf("SL=\$%.4f)\n",$stopLoss);
+		my $a4=$a1.$a2.$a3;
+		push(@dataAvgEnt,$a4);
+	}
+	say "########################### fixed risk dynamic position size (entry1 only)";
+	say @dataEnt1;
+	say "########################### fixed risk dynamic position size (average entry)";
+	say @dataAvgEnt;
 }
 
 ############################################################################
