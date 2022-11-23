@@ -340,22 +340,48 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
 	push (@template,"$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n\n");
 	
-	# risk percentages and position size (risked amount is based on entry and stop-loss)
+	# risk softening multiplier (just for risk based on only entry1) and risk percentages (risked amount is based on entry and stop-loss)
 	($riskSoftMult,$riskPercentageBasedOnEntry1,$riskPercentageBasedOnAvgEntry) = riskSofteningMultiplier(\@strArrEntries, $stopLoss); # passing array as reference
+	
+	# position sizes required for the wanted risk (calc for both enrty1 and average-entry)
 	my $positionSizeEntry1 = $wantedToRiskAmount/$riskPercentageBasedOnEntry1;
 	my $positionSizeAverageEntry = $wantedToRiskAmount/$riskPercentageBasedOnAvgEntry;
+	
+	# fixed risk dynamic position size calculation
+	my @temp_arraysConcatenatedReturnedFromSub;
+	my @frdps_dataEnt1;
+	my @frdps_dataAvgEnt;
+	(@temp_arraysConcatenatedReturnedFromSub) = fixedRiskDynamicPositionSize(\@strArrEntries,$stopLoss,$positionSizeEntry1,$positionSizeAverageEntry,$wantedToRiskAmount); # passing arrays as references
+	for my $i (0 .. ($noOfEntries-1)) {
+		$frdps_dataEnt1[$i]=$temp_arraysConcatenatedReturnedFromSub[$i];
+		$frdps_dataAvgEnt[$i]=$temp_arraysConcatenatedReturnedFromSub[$noOfEntries+$i];
+	}
+	
+	# show position size needed for required risk percentage (based only on entry1)
 	my $tempEnt1 = "########################### risk based only on entry 1\nriskPercentageBasedOnEntry1 = $riskPercentageBasedOnEntry1\n";
 	my $tempEnt2 = "riskSoftMult = $riskSoftMult\n";
 	my $tempEnt3 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n\n";
-	my $tempEnt4 = $tempEnt1.$tempEnt2.$tempEnt3;
+	push (@template,$tempEnt1);
+	push (@template,$tempEnt2);
+	push (@template,$tempEnt3);
+	# show position size needed for required risk percentage (based average entry)
 	my $tempTar1 = "########################### risk based on average entry\n";
 	my $tempTar2 = "riskPercentageBasedOnAvgEntry = $riskPercentageBasedOnAvgEntry\n";
 	my $tempTar3 = "position size of \$".sprintf("%.2f",$positionSizeAverageEntry)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n\n";
-	my $tempTar4 = $tempTar1.$tempTar2.$tempTar3;
-	push (@template, $tempEnt4); 
-	push (@template, $tempTar4);
-	
-	fixedRiskDynamicPositionSize(\@strArrEntries,$stopLoss,$positionSizeEntry1,$positionSizeAverageEntry,$wantedToRiskAmount); # passing arrays as references
+	push (@template,$tempTar1);
+	push (@template,$tempTar2);
+	push (@template,$tempTar3);
+	# show fixed risk dynamic position size for only on entry1
+	push(@template,"########################### fixed risk dynamic position size\n");
+	push (@template,"### only on entry 1\n");
+	for my $i (0 .. ($noOfEntries-1)) {
+		push (@template,$frdps_dataEnt1[$i]);
+	}
+	# show fixed risk dynamic position size for average entry
+	push (@template,"### average entry\n");
+	for my $i (0 .. ($noOfEntries-1)) {
+		push (@template,$frdps_dataAvgEnt[$i]);
+	}
 	
 	return @template;
 }
@@ -407,8 +433,7 @@ sub fixedRiskDynamicPositionSize {
 	my $posSizeAvgEnt=$_[3];
 	my $wantedToRiskAmount=$_[4];
 
-	my $NEW_ENTRY_VAL = 1.33;	## TEST TEST
-	my $NEW_NUM_ENTS_HIT = 3;	## TEST TEST
+	my $NEW_ENTRY_VAL = 16500;	## TEST TEST
 	
 	my @dataEnt1;
 	my @dataAvgEnt;
@@ -447,10 +472,8 @@ sub fixedRiskDynamicPositionSize {
 		my $a4=$a1.$a2.$a3;
 		push(@dataAvgEnt,$a4);
 	}
-	say "########################### fixed risk dynamic position size (entry1 only)";
-	say @dataEnt1;
-	say "########################### fixed risk dynamic position size (average entry)";
-	say @dataAvgEnt;
+	
+	return @dataEnt1, @dataAvgEnt;
 }
 
 ############################################################################
