@@ -288,6 +288,7 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $isTradeALong = $_[12];
 	my $weightingFactorEntries = $_[13];
 	my $weightingFactorTargets = $_[14];
+	my $dynamicEntryValue = $_[15];
 	my @template;
 	my $strRead;
 	my $riskSoftMult;
@@ -351,11 +352,15 @@ sub createCornixFreeTextAdvancedTemplate {
 	my @temp_arraysConcatenatedReturnedFromSub;
 	my @frdps_dataEnt1;
 	my @frdps_dataAvgEnt;
-	(@temp_arraysConcatenatedReturnedFromSub) = fixedRiskDynamicPositionSize(\@strArrEntries,$stopLoss,$positionSizeEntry1,$positionSizeAverageEntry,$wantedToRiskAmount); # passing arrays as references
-	for my $i (0 .. ($noOfEntries-1)) {
-		$frdps_dataEnt1[$i]=$temp_arraysConcatenatedReturnedFromSub[$i];
-		$frdps_dataAvgEnt[$i]=$temp_arraysConcatenatedReturnedFromSub[$noOfEntries+$i];
-	}
+	if ($dynamicEntryValue != 0) {  
+		@temp_arraysConcatenatedReturnedFromSub = fixedRiskDynamicPositionSize(\@strArrEntries,$stopLoss, # passing array as references
+														$positionSizeEntry1,$positionSizeAverageEntry,$wantedToRiskAmount,
+														$dynamicEntryValue,$isTradeALong); 
+		for my $i (0 .. ($noOfEntries-1)) {
+			$frdps_dataEnt1[$i]=$temp_arraysConcatenatedReturnedFromSub[$i];
+			$frdps_dataAvgEnt[$i]=$temp_arraysConcatenatedReturnedFromSub[$noOfEntries+$i];
+		}
+	}		
 	
 	# show position size needed for required risk percentage (based only on entry1)
 	my $tempEnt1 = "########################### risk based only on entry 1\nriskPercentageBasedOnEntry1 = $riskPercentageBasedOnEntry1\n";
@@ -372,15 +377,17 @@ sub createCornixFreeTextAdvancedTemplate {
 	push (@template,$tempTar2);
 	push (@template,$tempTar3);
 	# show fixed risk dynamic position size for only on entry1
-	push(@template,"########################### fixed risk dynamic position size\n");
-	push (@template,"### only on entry 1\n");
-	for my $i (0 .. ($noOfEntries-1)) {
-		push (@template,$frdps_dataEnt1[$i]);
-	}
-	# show fixed risk dynamic position size for average entry
-	push (@template,"### average entry\n");
-	for my $i (0 .. ($noOfEntries-1)) {
-		push (@template,$frdps_dataAvgEnt[$i]);
+	if ($dynamicEntryValue != 0) {  
+		push(@template,"########################### fixed risk dynamic position size\n");
+		push (@template,"### only on entry 1\n");
+		for my $i (0 .. ($noOfEntries-1)) {
+			push (@template,$frdps_dataEnt1[$i]);
+		}
+		# show fixed risk dynamic position size for average entry
+		push (@template,"### average entry\n");
+		for my $i (0 .. ($noOfEntries-1)) {
+			push (@template,$frdps_dataAvgEnt[$i]);
+		}
 	}
 	
 	return @template;
@@ -432,23 +439,33 @@ sub fixedRiskDynamicPositionSize {
 	my $posSizeEntry1=$_[2];
 	my $posSizeAvgEnt=$_[3];
 	my $wantedToRiskAmount=$_[4];
-
-	my $NEW_ENTRY_VAL = 16500;	## TEST TEST
+	my $dynamicEntryValue=$_[5];
+	my $isTradeALong=$_[6];
 	
+	# check that the new dynamic entry value occurs only while trade is currently in profit
+	my $firstEntryPrice;
+	my $avgEntryPrice;
+	my $percentageOfPosSizeBought;
+	# run calcAverageEntryPriceForVariableEntriesHit() once to get the first entry price so checks can be run
+	($firstEntryPrice,$avgEntryPrice,$percentageOfPosSizeBought) = calcAverageEntryPriceForVariableEntriesHit(\@strArrEnts,1);
+	if ( ( $isTradeALong==1) && ($dynamicEntryValue <= $firstEntryPrice) ) { 	# long
+		die "fixed risk dynamic position size error for long trade!\n";
+	}
+	if ( ($isTradeALong!=1) && ($dynamicEntryValue >= $firstEntryPrice) ){		# short
+		die "fixed risk dynamic position size error for short trade!\n";
+	}
+		
 	my @dataEnt1;
 	my @dataAvgEnt;
 	my $numEntriesToProcess = scalar(@strArrEnts);
+	# get stats for all possible entry targets hit so fixed risk dynamic position size can be calculated
 	for my $i (1 .. $numEntriesToProcess) {
-		my $firstEntryPrice;
-		my $avgEntryPrice;
-		my $percentageOfPosSizeBought;
 		($firstEntryPrice,$avgEntryPrice,$percentageOfPosSizeBought) = calcAverageEntryPriceForVariableEntriesHit(\@strArrEnts,$i);
-		
 		# calculate current risk percentage based on hit entries and stop-loss
 		my $riskPercentageBasedOnEntry1 = (abs($firstEntryPrice-$stopLoss))/$firstEntryPrice;
 		my $riskPercentageBasedOnAvgEntry = (abs($avgEntryPrice-$stopLoss))/$avgEntryPrice;
 		# calculate new risk percentage based on adding to position at the current price (not moving stop-loss)
-		my $riskPercentage_new_frdps = (abs($NEW_ENTRY_VAL-$stopLoss))/$NEW_ENTRY_VAL;	
+		my $riskPercentage_new_frdps = (abs($dynamicEntryValue-$stopLoss))/$dynamicEntryValue;	
 		# entry1-only: calculate the new position size required of fixed risk dynamic position sizing
 		my $riskedAmount_ent1 = $posSizeEntry1 * $percentageOfPosSizeBought * $riskPercentageBasedOnEntry1;
 		my $newAmountToRisk_ent1 = $wantedToRiskAmount - $riskedAmount_ent1;
@@ -460,14 +477,14 @@ sub fixedRiskDynamicPositionSize {
 		# entry1-only: output the data
 		my $currentTotalRisk_ent1 = $riskedAmount_ent1 + $newAmountToRisk_ent1;
 		my $e1=sprintf("%dentriesHit: currentRisk=\$%.0f, newPosSize \$%.0f ",$i,$riskedAmount_ent1,$newPositionSize_ent1);
-		my $e2=sprintf("at price \$%.4f adds \$%.0f of risk (totalRisk now \$%.0f, ",$NEW_ENTRY_VAL,$newAmountToRisk_ent1,$currentTotalRisk_ent1);
+		my $e2=sprintf("at price \$%.4f adds \$%.0f of risk (totalRisk now \$%.0f, ",$dynamicEntryValue,$newAmountToRisk_ent1,$currentTotalRisk_ent1);
 		my $e3=sprintf("SL=\$%.4f)\n",$stopLoss);
 		my $e4=$e1.$e2.$e3;
 		push(@dataEnt1,$e4);
 		# average-entry: output the data
 		my $currentTotalRisk_avgEnt = $riskedAmount_avgEnt + $newAmountToRisk_avgEnt;
 		my $a1=sprintf("%dentriesHit: currentRisk=\$%.0f, newPosSize \$%.0f ",$i,$riskedAmount_avgEnt,$newPositionSize_avgEnt);
-		my $a2=sprintf("at price \$%.4f adds \$%.0f of risk (totalRisk now \$%.0f, ",$NEW_ENTRY_VAL,$newAmountToRisk_avgEnt,$currentTotalRisk_avgEnt);
+		my $a2=sprintf("at price \$%.4f adds \$%.0f of risk (totalRisk now \$%.0f, ",$dynamicEntryValue,$newAmountToRisk_avgEnt,$currentTotalRisk_avgEnt);
 		my $a3=sprintf("SL=\$%.4f)\n",$stopLoss);
 		my $a4=$a1.$a2.$a3;
 		push(@dataAvgEnt,$a4);
@@ -702,19 +719,23 @@ GetOptions( \%args,
 			'ewf=s',	# required: entries weighting factor
 			'twf=s',	# required: targets weighting factor
 			'aoe=s',	# optional: amount of entries (override config file number of entries)
-			'not=s'		# optional: number of targets (override config file number of targets)
+			'not=s',	# optional: number of targets (override config file number of targets)
+			'dev=s'		# optional: dynamic entry value for dynamic risk fixed position size
           ) or die "Invalid command line arguments!";
 my $pathToFile = $args{file};
 my $weightingFactorEntries = $args{ewf};		# not in the trade config file
 my $weightingFactorTargets = $args{twf};		# not in the trade config file
 my $numberOfEntriesCommandLine = $args{aoe};	# in the config file, but override config file value if command line value given
 my $numberOfTargetsCommandLine = $args{not};	# in the config file, but override config file value if command line value given
+my $dynamicEntryValue = $args{dev};				# not in the trade config file (only an optional command line argument)
+
 
 unless ($args{file}) 	{ die "Missing --file!\n"; }			# --file (-f) FileName 
 unless ($args{ewf}) 	{ $weightingFactorEntries=0; }			# --ewf  (-e) entries weighting factor (for spreading percentages)
 unless ($args{twf}) 	{ $weightingFactorTargets=0; }			# --twf  (-t) targets weighting factor (for spreading percentages)
 unless ($args{aoe}) 	{ $numberOfEntriesCommandLine=0; }		# --aoe  (-a) amount of entries 
 unless ($args{not}) 	{ $numberOfTargetsCommandLine=0; }		# --not  (-n) number of targets 
+unless ($args{dev}) 	{ $dynamicEntryValue=0; }				# --dev  (-d) dynamic entry value  
 
 # read trade file
 my %configHash = readTradeConfigFile($pathToFile);
@@ -761,7 +782,8 @@ my @cornixTemplateAdvanced = createCornixFreeTextAdvancedTemplate($configHash{co
 													$configHash{wantedToRiskAmount},
 													$isTradeALong,
 													$weightingFactorEntries,
-													$weightingFactorTargets);
+													$weightingFactorTargets,
+													$dynamicEntryValue);
 													
 # print templates to screen
 say @cornixTemplateSimple;
