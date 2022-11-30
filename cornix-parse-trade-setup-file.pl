@@ -348,6 +348,9 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $positionSizeEntry1 = $wantedToRiskAmount/$riskPercentageBasedOnEntry1;
 	my $positionSizeAverageEntry = $wantedToRiskAmount/$riskPercentageBasedOnAvgEntry;
 	
+	my @dollarsRiskedAtEachEntry_ent1 = calcRiskAddedAtEachEntry (\@strArrEntries,$noOfEntries,$stopLoss,$positionSizeEntry1);
+	my @dollarsRiskedAtEachEntry_avgEnt = calcRiskAddedAtEachEntry (\@strArrEntries,$noOfEntries,$stopLoss,$positionSizeAverageEntry);
+	
 	# fixed risk dynamic position size calculation
 	my @temp_arraysConcatenatedReturnedFromSub;
 	my @frdps_dataEnt1;
@@ -363,27 +366,45 @@ sub createCornixFreeTextAdvancedTemplate {
 	}		
 	
 	# show position size needed for required risk percentage (based only on entry1)
-	my $tempEnt1 = "########################### risk based only on entry 1\nriskPercentageBasedOnEntry1 = $riskPercentageBasedOnEntry1\n";
-	my $tempEnt2 = "riskSoftMult = $riskSoftMult\n";
-	my $tempEnt3 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n\n";
+	my $tempEnt1 = "########################### risk based only on entry 1\n";
+	my $tempEnt2 = sprintf("riskPercentageBasedOnEntry1 = %.4f\n",$riskPercentageBasedOnEntry1);
+	my $tempEnt3 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n";
+	my $tempEnt4 = sprintf("riskSoftMult = %.4f\n",$riskSoftMult);
 	push (@template,$tempEnt1);
 	push (@template,$tempEnt2);
 	push (@template,$tempEnt3);
+	push (@template,$tempEnt4);	
+	# risk added at each entry (based only on entry1)
+	for my $i (0 .. ($noOfEntries-1)) {
+		my $str = sprintf("%s\n",$dollarsRiskedAtEachEntry_ent1[$i]);
+		push(@template,$str);
+	}
+	my $softenedRisk = $wantedToRiskAmount*$riskSoftMult;
+	my $tempEnt5 = sprintf("\$%.2f * %.4f = \$%.2f\n\n",$wantedToRiskAmount,$riskSoftMult,$softenedRisk);
+	push (@template,$tempEnt5);
+
 	# show position size needed for required risk percentage (based average entry)
-	my $tempTar1 = "########################### risk based on average entry\n";
-	my $tempTar2 = "riskPercentageBasedOnAvgEntry = $riskPercentageBasedOnAvgEntry\n";
-	my $tempTar3 = "position size of \$".sprintf("%.2f",$positionSizeAverageEntry)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n\n";
-	push (@template,$tempTar1);
-	push (@template,$tempTar2);
-	push (@template,$tempTar3);
-	# show fixed risk dynamic position size for only on entry1
-	if ($dynamicEntryValue != 0) {  
-		push(@template,"########################### fixed risk dynamic position size\n");
+	my $tempAvg1 = "########################### risk based on average entry\n";
+	my $tempAvg2 = sprintf("riskPercentageBasedOnAvgEntry = %.4f\n",$riskPercentageBasedOnAvgEntry);
+	my $tempAvg3 = "position size of \$".sprintf("%.2f",$positionSizeAverageEntry)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n";
+	push (@template,$tempAvg1);
+	push (@template,$tempAvg2);
+	push (@template,$tempAvg3);
+	# risk added at each entry (based only on avgEntry)
+	for my $i (0 .. ($noOfEntries-1)) {
+		my $str = sprintf("%s\n",$dollarsRiskedAtEachEntry_avgEnt[$i]);
+		push(@template,$str);
+	}
+	
+	# Optional: show fixed risk dynamic position sizes 
+	if ($dynamicEntryValue != 0) { 
+		# entry1
+		push(@template,"\n########################### fixed risk dynamic position size\n");
 		push (@template,"### only on entry 1\n");
 		for my $i (0 .. ($noOfEntries-1)) {
 			push (@template,$frdps_dataEnt1[$i]);
 		}
-		# show fixed risk dynamic position size for average entry
+		# average entry
 		push (@template,"### average entry\n");
 		for my $i (0 .. ($noOfEntries-1)) {
 			push (@template,$frdps_dataAvgEnt[$i]);
@@ -429,6 +450,36 @@ sub calcAverageEntryPriceForVariableEntriesHit {
 	my $averageEntryPrice = $totalAmountPaidForCoins / $totalNumberCoinsBought;
 		
 	return ($firstEntryPrice, $averageEntryPrice, $totalPercentageOfPositionSizeBought);
+}
+
+############################################################################
+############################################################################
+sub calcRiskAddedAtEachEntry {
+	my @strArrEnts=@{$_[0]}; 						# dereference the passed array
+	my $noOfEntries=$_[1];
+	my $stopLoss=$_[2];
+	my $fullPositionSize=$_[3];
+	
+	my $totalRiskSoFar=0;
+	my @retArr;
+	
+	for my $i (0 .. ($noOfEntries-1)) {
+		# get the values and percentages from the Cornix Entry Tragets: string array 
+		my @splitter=split / /, $strArrEnts[$i];	# split line using spaces, [0]=1), [1]=value, [2]=hyphen, [3]=percentage
+		my $entryPrice = $splitter[1];
+		my $percentage = ($splitter[3]);
+		$percentage =~ s/%//g;						# remove percentage sign
+		$percentage /= 100;							# percenatge as decimal
+		
+		my $entryNo=$i+1;
+		my $thisEntryPositionSize=$fullPositionSize*$percentage;
+		my $thisRiskedPercentage = (abs($entryPrice-$stopLoss))/$entryPrice;
+		my $thisRiskedAmount = $thisEntryPositionSize*$thisRiskedPercentage;
+		$totalRiskSoFar += $thisRiskedAmount;
+		my $str1=sprintf("entry %d: riskAmountAdded=\$%.2f, totalRisk=\$%.2f",$entryNo,$thisRiskedAmount,$totalRiskSoFar);
+		push(@retArr,$str1);
+	}
+	return @retArr;
 }
 
 ############################################################################
