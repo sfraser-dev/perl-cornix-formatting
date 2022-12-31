@@ -61,7 +61,8 @@ sub readTradeConfigFile {
 					'stopLoss' => 0,
 					'targetValue' => 0,
 					'noDecimalPlacesForEntriesTargetsAndSLs' => 0,
-					'wantedToRiskAmount' => 999999
+					'wantedToRiskAmount' => 999999,
+					'noOfAddOns' => 0
 				);
 	open my $info, $pathToFile or die "Could not open $pathToFile: $!";
 	while( my $line = <$info>) { 
@@ -118,6 +119,12 @@ sub readTradeConfigFile {
 			my $val = $splitter[1];
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{wantedToRiskAmount}=$val;
+		}
+		if ($line =~ m/noOfAddOns/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
+			$dataHash{noOfAddOns}=$val;
 		}
 	}
 	close $info;
@@ -181,13 +188,7 @@ sub checkValuesFromConfigFile {
 	my $leverage = $_[3];
 	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[4];
 	my $wantedToRiskAmount = $_[5];
-	
-	say"entryValue=$entryValue";
-	say"targetValue=$targetValue";
-	say"stopLoss=$stopLoss";
-	say"leverage=$leverage";
-	say"noDecimalPlacesForEntriesTargetsAndSLs=$noDecimalPlacesForEntriesTargetsAndSLs";
-	say"wantedToRiskAmount=$wantedToRiskAmount";
+	my $noOfAddOns = $_[6];
 	
 	# determine if it's a long or a short trade
 	my $isTradeALong;
@@ -219,7 +220,55 @@ sub checkValuesFromConfigFile {
 	# the risked amount
 	if ($wantedToRiskAmount <= 0) { die "\nerror: wantedToRiskAmount is <= 0\n"; }
 	
+	# TT number of add ons
+	if ($noOfAddOns <= 0) { die "\nerror: noOfAddOns is <= 0\n"; }
+	
 	return $isTradeALong;
+}
+
+############################################################################
+############################################################################
+sub tt_begin {
+	my $ent1 = $_[0];
+	my $targ1= $_[1];
+	my $sl1 = $_[2];
+	my $noOfAddOns = $_[3];
+	my $wantedToRiskAmount = $_[4];
+	my $isTradeALong = $_[5];
+	say"noOfAddOns=$noOfAddOns";
+	say"wantedToRiskAmount=$wantedToRiskAmount";
+	
+	my $riskPercentageBasedOnEntryAndSL = (abs($ent1-$sl1))/$ent1;
+	
+	my $r1 = $riskPercentageBasedOnEntryAndSL;
+	my $rIncrement = $r1/$noOfAddOns;
+	say"r1=$r1";
+	say"rIncrement=$rIncrement";
+		
+	if ($isTradeALong==1) {	
+
+		my $requiredPositionSize =  $wantedToRiskAmount/$r1;
+		say"requiredPositionSize=$requiredPositionSize";
+		
+		my $absStopLossDist =  abs($ent1-$sl1);
+		my $theStepSize = $absStopLossDist/$noOfAddOns;
+		
+		my $ent2 = $ent1 + $theStepSize;
+		my $sl2 = $sl1 + $theStepSize;
+		my $ent3 = $ent2 + $theStepSize;
+		my $sl3 = $sl2 + $theStepSize;
+		my $ent4 = $ent3 + $theStepSize;
+		my $sl4 = $sl3 + $theStepSize;
+		say"ent1=$ent1";		
+		say"sl1=$sl1";
+		say"ent2=$ent2";		
+		say"sl2=$sl2";
+		say"ent3=$ent3";		
+		say"sl3=$sl3";
+		say"ent4=$ent4";		
+		say"sl4=$sl4";
+	}
+
 }
 
 ############################################################################
@@ -242,7 +291,8 @@ my $isTradeALong = checkValuesFromConfigFile(	$configHash{entryValue},
 												$configHash{stopLoss},
 												$configHash{leverage},
 												$configHash{noDecimalPlacesForEntriesTargetsAndSLs},
-												$configHash{wantedToRiskAmount}
+												$configHash{wantedToRiskAmount},
+												$configHash{noOfAddOns}
 											);
 											
 # old and simple way of using Cornix Free Text, generate a version of this too as well as the advanced template
@@ -253,12 +303,15 @@ my @cornixTemplateSimple = createCornixFreeTextSimpleTemplate($configHash{coinPa
 																	$configHash{stopLoss},
 																	$configHash{noDecimalPlacesForEntriesTargetsAndSLs});
 																	
+tt_begin($configHash{entryValue}, $configHash{targetValue},	$configHash{stopLoss},
+			$configHash{noOfAddOns}, $configHash{wantedToRiskAmount}, $isTradeALong);
+
 # print templates to screen
 say @cornixTemplateSimple;
 
-# print template to file
-my $scriptName = basename($0);
-my $fileName = createOutputFileName($scriptName, $configHash{coinPair}, $isTradeALong);
-my $fh;
-open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
-say $fh @cornixTemplateSimple;
+# # print template to file
+# my $scriptName = basename($0);
+# my $fileName = createOutputFileName($scriptName, $configHash{coinPair}, $isTradeALong);
+# my $fh;
+# open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
+# say $fh @cornixTemplateSimple;
