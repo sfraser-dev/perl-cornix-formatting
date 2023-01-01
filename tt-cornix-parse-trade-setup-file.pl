@@ -38,19 +38,6 @@ sub createOutputFileName {
 
 ############################################################################
 ############################################################################
-sub formatToVariableNumberOfDecimalPlaces {
-	my $valIn = $_[0];
-	my $decimalPlaces = $_[1];
-	
-	# sprintf("%.Xf",str) where X is variable
-	my $temp = "%.$decimalPlaces"."f";			
-	my $valOut = sprintf($temp, $valIn);
-	
-	return $valOut;
-}
-
-############################################################################
-############################################################################
 sub readTradeConfigFile {
 	# Cornix: max entries 10, only 1 SL allowed, max targets 10
 	my $pathToFile = $_[0];
@@ -62,7 +49,8 @@ sub readTradeConfigFile {
 					'targetValue' => 0,
 					'noDecimalPlacesForEntriesTargetsAndSLs' => 0,
 					'wantedToRiskAmount' => 999999,
-					'noOfAddOns' => 0
+					'noOfAddOns' => 0,
+					'addOnReduceMultiple' => 1
 				);
 	open my $info, $pathToFile or die "Could not open $pathToFile: $!";
 	while( my $line = <$info>) { 
@@ -126,6 +114,12 @@ sub readTradeConfigFile {
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{noOfAddOns}=$val;
 		}
+		if ($line =~ m/addOnReduceMultiple/) { 
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
+			$dataHash{addOnReduceMultiple}=$val;
+		}
 	}
 	close $info;
 	return %dataHash;
@@ -133,16 +127,19 @@ sub readTradeConfigFile {
 
 ############################################################################
 ############################################################################
-sub createCornixFreeTextSimpleTemplate {
+sub createCornixFreeTextSimpleTemplateTT {
 	my $pair=$_[0];
 	my $leverage=$_[1];
 	my $entryValue=$_[2];
 	my $targetValue=$_[3];
 	my $stopLoss=$_[4];
 	my $noDecimalPlacesForEntriesTargetsAndSLs=$_[5];
+	my $forLoopInc=$_[6];
 	my @simpleTemplate; 
 
-	push (@simpleTemplate, "########################### simple template\n");
+	if ($forLoopInc==0) { push (@simpleTemplate, "########################### simple template base trade\n"); }
+	else { push (@simpleTemplate, "########################### simple template add-on $forLoopInc\n"); }
+	
 	push(@simpleTemplate,"$pair\n");
 	if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage cross %sx\n",$leverage)); }
 	
@@ -189,6 +186,7 @@ sub checkValuesFromConfigFile {
 	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[4];
 	my $wantedToRiskAmount = $_[5];
 	my $noOfAddOns = $_[6];
+	my $addOnReduceMultiple = $_[7];
 	
 	# determine if it's a long or a short trade
 	my $isTradeALong;
@@ -220,10 +218,58 @@ sub checkValuesFromConfigFile {
 	# the risked amount
 	if ($wantedToRiskAmount <= 0) { die "\nerror: wantedToRiskAmount is <= 0\n"; }
 	
-	# TT number of add ons
+	# TT number of add-ons
 	if ($noOfAddOns <= 0) { die "\nerror: noOfAddOns is <= 0\n"; }
 	
+	# TT add-on reduce multiple (add the same amount of risk at each add on (1) or reduce the amount of risk at each add on (>1))
+	if (($addOnReduceMultiple < 1) or ($addOnReduceMultiple > 3)) { 
+		die "\nerror: addOnReduceMultiple is not a sensible value\n";
+	}
+	
 	return $isTradeALong;
+}
+
+############################################################################
+############################################################################
+sub formatToVariableNumberOfDecimalPlaces {
+	my $valIn = $_[0];
+	my $decimalPlaces = $_[1];
+	
+	# sprintf("%.Xf",str) where X is variable
+	my $temp = "%.$decimalPlaces"."f";			
+	my $valOut = sprintf($temp, $valIn);
+	
+	return $valOut;
+}
+
+############################################################################
+############################################################################
+sub printArrayToScreen {
+	my @arr = @{$_[0]}; 				# dereference the passed array
+	my $decimalPlaces = $_[1];
+	my $len = scalar(@arr);
+	for(my $i = 0; $i < $len; $i++){
+		my $temp = formatToVariableNumberOfDecimalPlaces($arr[$i], $decimalPlaces);
+		print("$temp ");
+	}
+	print("\n");	
+}
+
+############################################################################
+############################################################################
+sub trade_stats {
+	my $ent = $_[0];
+	my $tar= $_[1];
+	my $sl = $_[2];
+	my $wantedToRiskAmount = $_[3];
+	
+	my $wantedToRiskPercentage = (abs($ent-$sl))/$ent;
+	my $requiredPositionSize =  $wantedToRiskAmount / $wantedToRiskPercentage;
+	
+	say"-----";
+	say"wantedToRiskAmount=$wantedToRiskAmount";
+	say"wantedToRiskPercentage=$wantedToRiskPercentage";
+	say"requiredPositionSize=$requiredPositionSize\n";
 }
 
 ############################################################################
@@ -235,39 +281,54 @@ sub tt_begin {
 	my $noOfAddOns = $_[3];
 	my $wantedToRiskAmount = $_[4];
 	my $isTradeALong = $_[5];
-	say"noOfAddOns=$noOfAddOns";
-	say"wantedToRiskAmount=$wantedToRiskAmount";
-	
-	my $riskPercentageBasedOnEntryAndSL = (abs($ent1-$sl1))/$ent1;
-	
-	my $r1 = $riskPercentageBasedOnEntryAndSL;
-	my $rIncrement = $r1/$noOfAddOns;
-	say"r1=$r1";
-	say"rIncrement=$rIncrement";
-		
-	if ($isTradeALong==1) {	
+	my $coinPair = $_[6];
+	my $leverage = $_[7];
+	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[8];
+	my $addOnReduceMultiple = $_[9];
 
-		my $requiredPositionSize =  $wantedToRiskAmount/$r1;
-		say"requiredPositionSize=$requiredPositionSize";
+	my $totalNumberOfTradesOriginalAndAddons = $noOfAddOns+1;	# the original trade plus the required noOfAddOns  
+	my $theStepSize = (abs($ent1-$sl1))/$totalNumberOfTradesOriginalAndAddons;
+
+	say"noOfAddOns wanted=$noOfAddOns";
+
+	if ($isTradeALong==1) {		
+		# arrays for original trade and calculated TT add-ons
+		my @entriesArr;
+		my @targetsArr;
+		my @stoplossArr;
 		
-		my $absStopLossDist =  abs($ent1-$sl1);
-		my $theStepSize = $absStopLossDist/$noOfAddOns;
+		# the original trade
+		push(@entriesArr,$ent1);
+		push(@targetsArr,$targ1);
+		push(@stoplossArr,$sl1);
+
+		# the required TT add-ons
+		for(my $i = 1; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
+			push(@entriesArr, $entriesArr[$i-1]+$theStepSize);
+			push(@targetsArr, $targetsArr[$i-1]+$theStepSize);
+			push(@stoplossArr,$stoplossArr[$i-1]+$theStepSize);
+		}
+		# print the original and add-on arrays
+		# print("entries: "); printArrayToScreen(\@entriesArr, 1);
+		# print("stoplosses: "); printArrayToScreen(\@stoplossArr, 1);
+		# print("targets: "); printArrayToScreen(\@targetsArr, 1);
 		
-		my $ent2 = $ent1 + $theStepSize;
-		my $sl2 = $sl1 + $theStepSize;
-		my $ent3 = $ent2 + $theStepSize;
-		my $sl3 = $sl2 + $theStepSize;
-		my $ent4 = $ent3 + $theStepSize;
-		my $sl4 = $sl3 + $theStepSize;
-		say"ent1=$ent1";		
-		say"sl1=$sl1";
-		say"ent2=$ent2";		
-		say"sl2=$sl2";
-		say"ent3=$ent3";		
-		say"sl3=$sl3";
-		say"ent4=$ent4";		
-		say"sl4=$sl4";
+		# create simple cornix free text templates for the original trade and add-ons 
+		my @multipleCornixTemplatesSimple;
+		for(my $i = 0; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
+			my @tempCornixSimple = createCornixFreeTextSimpleTemplateTT($coinPair, $leverage, $entriesArr[$i], $targetsArr[$i],
+																		$stoplossArr[$i], $noDecimalPlacesForEntriesTargetsAndSLs,
+																		$i);
+			print @tempCornixSimple;
+			trade_stats($entriesArr[$i], $targetsArr[$i], $stoplossArr[$i], $wantedToRiskAmount);
+			push(@multipleCornixTemplatesSimple, @tempCornixSimple);
+			$wantedToRiskAmount /= $addOnReduceMultiple;		# skyscraper building
+		}
+		
+		#say @multipleCornixTemplatesSimple; 
 	}
+	
+	
 
 }
 
@@ -292,22 +353,17 @@ my $isTradeALong = checkValuesFromConfigFile(	$configHash{entryValue},
 												$configHash{leverage},
 												$configHash{noDecimalPlacesForEntriesTargetsAndSLs},
 												$configHash{wantedToRiskAmount},
-												$configHash{noOfAddOns}
+												$configHash{noOfAddOns},
+												$configHash{addOnReduceMultiple}
 											);
-											
-# old and simple way of using Cornix Free Text, generate a version of this too as well as the advanced template
-my @cornixTemplateSimple = createCornixFreeTextSimpleTemplate($configHash{coinPair},
-																	$configHash{leverage},
-																	$configHash{entryValue},
-																	$configHash{targetValue},
-																	$configHash{stopLoss},
-																	$configHash{noDecimalPlacesForEntriesTargetsAndSLs});
 																	
 tt_begin($configHash{entryValue}, $configHash{targetValue},	$configHash{stopLoss},
-			$configHash{noOfAddOns}, $configHash{wantedToRiskAmount}, $isTradeALong);
+			$configHash{noOfAddOns}, $configHash{wantedToRiskAmount}, $isTradeALong,
+			$configHash{coinPair}, $configHash{leverage}, $configHash{noDecimalPlacesForEntriesTargetsAndSLs},
+			$configHash{addOnReduceMultiple});
 
 # print templates to screen
-say @cornixTemplateSimple;
+#say @cornixTemplateSimple;
 
 # # print template to file
 # my $scriptName = basename($0);
