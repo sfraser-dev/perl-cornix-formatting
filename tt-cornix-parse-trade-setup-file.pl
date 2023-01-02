@@ -32,8 +32,43 @@ sub createOutputFileName {
 	} else {
 		die "error: trade is neither a long nor a short";
 	}
-	$txtFile = "$dateWee-$pairNoSlash-$longOrShortStr\.trade";
+	$txtFile = "$dateWee-$pairNoSlash-$longOrShortStr-tt\.trade";
 	return $txtFile;
+}
+
+############################################################################
+############################################################################
+sub getCornixClientName {
+	my $clientNum=$_[0];
+	my $retStr;
+	
+	if 		($clientNum == 1) 	{ $retStr = "BM BinFuts (main)"; }
+	elsif 	($clientNum == 2) 	{ $retStr = "BM BinSpot (main)"; }	
+	elsif 	($clientNum == 3) 	{ $retStr = "BM BybitKB7 Contract InvUSD (main) 260321"; }
+	elsif 	($clientNum == 4) 	{ $retStr = "BM BybitKB7 Contract LinUSDT (main) 211128"; }	
+	elsif 	($clientNum == 5) 	{ $retStr = "SF BinFuts (main)"; }	
+	elsif 	($clientNum == 6) 	{ $retStr = "SF BinSpot (main)"; }	
+	elsif 	($clientNum == 7) 	{ $retStr = "SF Bybit Contract InvUSD (main) 210318"; }	
+	elsif 	($clientNum == 8) 	{ $retStr = "BM BybitKB7 Contract LinUSDT (main) 281121"; }	
+	elsif 	($clientNum == 9) 	{ $retStr = "SF FtxFuturesPerp (main)"; }	
+	elsif 	($clientNum == 10) 	{ $retStr = "SF FtxFSpot (main)"; }	
+	elsif 	($clientNum == 11) 	{ $retStr = "SF KucoinSpot (main)"; }	
+	elsif 	($clientNum == 12) 	{ $retStr = "SF Bybit Contract LinUSDT (main) 281121"; }	
+	else 						{ die "error: can't determine Cornix client/exchange name"; }
+	
+	return $retStr;
+}
+
+############################################################################
+############################################################################
+sub removeMidLineComments {
+	my $line = $_[0];
+	if ($line =~ m/#/) { 
+		my @arr = split(/#/,$line);
+		$line = $arr[0];
+	}
+	
+	return $line;
 }
 
 ############################################################################
@@ -49,8 +84,9 @@ sub readTradeConfigFile {
 					'targetValue' => 0,
 					'noDecimalPlacesForEntriesTargetsAndSLs' => 0,
 					'wantedToRiskAmount' => 999999,
-					'noOfAddOns' => 0,
-					'addOnReduceMultiple' => 1
+					'noOfAddOns' => 999999,
+					'addOnSoftenerMultiple' => 999999,
+					'stepSizeInR' => 999999
 				);
 	open my $info, $pathToFile or die "Could not open $pathToFile: $!";
 	while( my $line = <$info>) { 
@@ -59,6 +95,7 @@ sub readTradeConfigFile {
 		if ($temp =~ /^#/) {		# is first character a '#' (ie: a comment)?
 			next;
 		}
+		$line = removeMidLineComments($line);
 		if ($line =~ m/coinPair/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
@@ -102,24 +139,31 @@ sub readTradeConfigFile {
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{noDecimalPlacesForEntriesTargetsAndSLs}=$val;
 		}
-		if ($line =~ m/wantedToRiskAmount/) { 
+		if ($line =~ m/wantedToRiskAmount/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{wantedToRiskAmount}=$val;
 		}
-		if ($line =~ m/noOfAddOns/) { 
+		if ($line =~ m/noOfAddOns/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
 			$dataHash{noOfAddOns}=$val;
 		}
-		if ($line =~ m/addOnReduceMultiple/) { 
+		if ($line =~ m/addOnSoftenerMultiple/) {
 			my @splitter = split(/=/,$line);
 			my $val = $splitter[1];
 			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
-			$dataHash{addOnReduceMultiple}=$val;
+			$dataHash{addOnSoftenerMultiple}=$val;
 		}
+		if ($line =~ m/stepSizeInR/) {
+			my @splitter = split(/=/,$line);
+			my $val = $splitter[1];
+			$val =~ s/^\s+|\s+$//g;		# remove white space from start and end of variables
+			$dataHash{stepSizeInR}=$val;
+		}
+		
 	}
 	close $info;
 	return %dataHash;
@@ -134,11 +178,11 @@ sub createCornixFreeTextSimpleTemplateTT {
 	my $targetValue=$_[3];
 	my $stopLoss=$_[4];
 	my $noDecimalPlacesForEntriesTargetsAndSLs=$_[5];
-	my $forLoopInc=$_[6];
+	my $forLoopIncrement=$_[6];
+	my $isTradeALong=$_[7];
 	my @simpleTemplate; 
 
-	if ($forLoopInc==0) { push (@simpleTemplate, "########################### simple template base trade\n"); }
-	else { push (@simpleTemplate, "########################### simple template add-on $forLoopInc\n"); }
+	push (@simpleTemplate, "########################### simple template add-on $forLoopIncrement\n");
 	
 	push(@simpleTemplate,"$pair\n");
 	if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage cross %sx\n",$leverage)); }
@@ -146,7 +190,8 @@ sub createCornixFreeTextSimpleTemplateTT {
 	my $ent = formatToVariableNumberOfDecimalPlaces($entryValue,$noDecimalPlacesForEntriesTargetsAndSLs);
 	my $targ = formatToVariableNumberOfDecimalPlaces($targetValue,$noDecimalPlacesForEntriesTargetsAndSLs);
 	my $sl = formatToVariableNumberOfDecimalPlaces($stopLoss,$noDecimalPlacesForEntriesTargetsAndSLs);
-	push(@simpleTemplate, "enter $ent\n");
+	# make all TT trades "breakout" trades (initial base trade too) 
+	($isTradeALong==1) ? push(@simpleTemplate, "enter above $ent\n") : push(@simpleTemplate, "enter below $ent\n");
 	push(@simpleTemplate, "stop $sl\n");
 	push(@simpleTemplate, "targets $targ\n");
 	
@@ -155,25 +200,57 @@ sub createCornixFreeTextSimpleTemplateTT {
 
 ############################################################################
 ############################################################################
-sub getCornixClientName {
-	my $clientNum=$_[0];
-	my $retStr;
+sub createCornixFreeTextAdvancedTemplateTT_PercentBelowHighest {
+	my $pair = $_[0];
+	my $clientSelected = $_[1];
+	my $leverage = $_[2];
+	my $entryValue = $_[3];
+	my $targetValue = $_[4];
+	my $stopLoss = $_[5];
+	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[6];
+	my $forLoopIncrement = $_[7];
+	my $isTradeALong = $_[8];
+	my $stepSizeInR = $_[9];
 	
-	if 		($clientNum == 1) 	{ $retStr = "BM BinFuts (main)"; }
-	elsif 	($clientNum == 2) 	{ $retStr = "BM BinSpot (main)"; }	
-	elsif 	($clientNum == 3) 	{ $retStr = "BM BybitKB7 Contract InvUSD (main) 260321"; }
-	elsif 	($clientNum == 4) 	{ $retStr = "BM BybitKB7 Contract LinUSDT (main) 211128"; }	
-	elsif 	($clientNum == 5) 	{ $retStr = "SF BinFuts (main)"; }	
-	elsif 	($clientNum == 6) 	{ $retStr = "SF BinSpot (main)"; }	
-	elsif 	($clientNum == 7) 	{ $retStr = "SF Bybit Contract InvUSD (main) 210318"; }	
-	elsif 	($clientNum == 8) 	{ $retStr = "BM BybitKB7 Contract LinUSDT (main) 281121"; }	
-	elsif 	($clientNum == 9) 	{ $retStr = "SF FtxFuturesPerp (main)"; }	
-	elsif 	($clientNum == 10) 	{ $retStr = "SF FtxFSpot (main)"; }	
-	elsif 	($clientNum == 11) 	{ $retStr = "SF KucoinSpot (main)"; }	
-	elsif 	($clientNum == 12) 	{ $retStr = "SF Bybit Contract LinUSDT (main) 281121"; }	
-	else 						{ die "error: can't determine Cornix client/exchange name"; }
+	my @template;
+	push (@template, "########################### advanced template add-on $forLoopIncrement\n");
 	
-	return $retStr;
+	# coin pairs
+	push (@template, "$pair\n");
+	
+	# Cornix client
+	my $clientName = getCornixClientName($clientSelected);
+	push (@template, "Client: $clientName\n");
+	
+	# long or short trade
+	if ($isTradeALong==1) 		{ push (@template, "Trade Type: Breakout (Long)\n"); }
+	elsif ($isTradeALong==0) 	{ push (@template, "Trade Type: Breakout (Short)\n"); }
+	else 						{ die "error: cannot determine if trade is a long or a short for writing template"; }
+	
+	# amount of leverage to use (if any at all, "-1" means no leverage)
+	#if ($leverage >= 1) 		{ push (@template, "Leverage: Isolated ($leverage.0X)\n"); }
+	if ($leverage >= 1) 		{ push (@template, "Leverage: Cross ($leverage.0X)\n"); }
+	
+	# entry, target and SL
+	push (@template,"Entry Targets:\n1) $entryValue - 100%\n");
+	push (@template,"Take-Profit Targets:\n1) $targetValue - 100%\n");
+	push (@template,"Stop Targets:\n1) $stopLoss - 100%\n");
+
+	# trailing configuration
+	my $stoplossPercentage_R = (abs($entryValue-$stopLoss)) / $entryValue;		 # R
+	my $trailingStoplossTrigger_percentageAboveEntry = $stoplossPercentage_R * $stepSizeInR * 100;
+	my $trailingStoplossDistance_percentageBelowHighestPriceReached = $stoplossPercentage_R * 100;
+	$trailingStoplossTrigger_percentageAboveEntry = formatToVariableNumberOfDecimalPlaces($trailingStoplossTrigger_percentageAboveEntry, 2);
+	$trailingStoplossDistance_percentageBelowHighestPriceReached = formatToVariableNumberOfDecimalPlaces($trailingStoplossDistance_percentageBelowHighestPriceReached, 2);
+	
+	my $trailingLine01 = "Trailing Configuration:";
+	my $trailingLine02 = "Entry: Percentage (0.0%)";
+	my $trailingLine03 = "Take-Profit: Percentage (0.0%)";
+	my $trailingLine04 = "Stop: Percent Below Highest ($trailingStoplossDistance_percentageBelowHighestPriceReached%) -";
+	my $trailingLine05 = " Trigger: Percent ($trailingStoplossTrigger_percentageAboveEntry%)";
+	push (@template,"$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n$trailingLine05\n");
+	
+	return @template;
 }
 
 ############################################################################
@@ -186,7 +263,8 @@ sub checkValuesFromConfigFile {
 	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[4];
 	my $wantedToRiskAmount = $_[5];
 	my $noOfAddOns = $_[6];
-	my $addOnReduceMultiple = $_[7];
+	my $addOnSoftenerMultiple = $_[7];
+	my $stepSizeInR = $_[8];
 	
 	# determine if it's a long or a short trade
 	my $isTradeALong;
@@ -215,15 +293,26 @@ sub checkValuesFromConfigFile {
 		die "error: issue with the amount of decimal places";
 	}
 	
-	# the risked amount
+	# TT the risked amount
 	if ($wantedToRiskAmount <= 0) { die "\nerror: wantedToRiskAmount is <= 0\n"; }
 	
-	# TT number of add-ons
-	if ($noOfAddOns <= 0) { die "\nerror: noOfAddOns is <= 0\n"; }
+	# TT number of add-ons (Cornix can only have 3 trades of the same symbol at the same time (ie: the base trade and 2 add-ons)
+	if ($noOfAddOns != 0) {
+		if ($noOfAddOns != 1) {
+			if ($noOfAddOns != 2) {
+				die "\nerror: noOfAddOns should be 0, 1 or 2\n";
+			}
+		}
+	}
 	
-	# TT add-on reduce multiple (add the same amount of risk at each add on (1) or reduce the amount of risk at each add on (>1))
-	if (($addOnReduceMultiple < 1) or ($addOnReduceMultiple > 3)) { 
-		die "\nerror: addOnReduceMultiple is not a sensible value\n";
+	# TT add-on reduce multiple (add the same amount of risk at each add on (1) or reduce the amount of risk at each add on (<1))
+	if (($addOnSoftenerMultiple > 1) or ($addOnSoftenerMultiple <= 0)) { 
+		die "\nerror: addOnSoftenerMultiple should be between 0 and 1\n";
+	}
+	
+	# TT the stepsize (in R) for add-ons to be implemented
+	if (($stepSizeInR < 0.25) or ($stepSizeInR > 0.5)) {
+		die "\nerror: stepSizeInR should be between 0.25R and 0.50R\n";
 	}
 	
 	return $isTradeALong;
@@ -266,10 +355,19 @@ sub trade_stats {
 	my $wantedToRiskPercentage = (abs($ent-$sl))/$ent;
 	my $requiredPositionSize =  $wantedToRiskAmount / $wantedToRiskPercentage;
 	
-	say"-----";
-	say"wantedToRiskAmount=$wantedToRiskAmount";
-	say"wantedToRiskPercentage=$wantedToRiskPercentage";
-	say"requiredPositionSize=$requiredPositionSize\n";
+	my @arr;
+	push(@arr,"---------------------------\n");
+	my $str1 = sprintf("\$%.2f",$wantedToRiskAmount); 
+	$wantedToRiskPercentage *= 100;
+	my $str2 = sprintf("%.2f",$wantedToRiskPercentage);
+	$str2 = $str2."%";
+	my $str3 = sprintf("\$%.2f",$requiredPositionSize); 		
+	push(@arr,"wantedToRiskAmount=$str1\n");
+	push(@arr,"wantedToRiskPercentage=$str2\n");
+	push(@arr,"requiredPositionSize=$str3\n");
+	push(@arr,"\n\n");
+	
+	return @arr;
 }
 
 ############################################################################
@@ -284,52 +382,83 @@ sub tt_begin {
 	my $coinPair = $_[6];
 	my $leverage = $_[7];
 	my $noDecimalPlacesForEntriesTargetsAndSLs = $_[8];
-	my $addOnReduceMultiple = $_[9];
+	my $addOnSoftenerMultiple = $_[9];
+	my $stepSizeInR = $_[10];
+	my $clientSelected = $_[11];
+	
+	my $totalNumberOfTradesOriginalAndAddons = $noOfAddOns + 1;
+	my $theStepSize = (abs($ent1-$sl1))*$stepSizeInR;
 
-	my $totalNumberOfTradesOriginalAndAddons = $noOfAddOns+1;	# the original trade plus the required noOfAddOns  
-	my $theStepSize = (abs($ent1-$sl1))/$totalNumberOfTradesOriginalAndAddons;
-
-	say"noOfAddOns wanted=$noOfAddOns";
-
-	if ($isTradeALong==1) {		
-		# arrays for original trade and calculated TT add-ons
-		my @entriesArr;
-		my @targetsArr;
-		my @stoplossArr;
+	# arrays for original trade and calculated TT add-ons
+	my @entriesArr;
+	my @targetsArr;
+	my @stoplossArr;
 		
-		# the original trade
-		push(@entriesArr,$ent1);
-		push(@targetsArr,$targ1);
-		push(@stoplossArr,$sl1);
+	# the original trade...
+	push(@entriesArr,$ent1); 
+	push(@targetsArr,$targ1);
+	push(@stoplossArr,$sl1); 
 
-		# the required TT add-ons
+	# ...TT add-ons
+	my $wantedToRiskPercentage = (abs($ent1-$sl1))/$ent1; 
+	my $addOnOption = 1;
+	# Same SL distances (eg:1000) at different entries results in different risk percentages1000/18000
+	# SL distance of 1000: 1000/18000=0.061, 1000/18500=0.054
+	# Can have either:
+	# (1) stop-losses in nice sequential order but risk percentages and position sizes very slightly different at each add-on
+	# (2) stop-loss sequence very slightly off but risk percentages and position sizes the same at each add-on
+	if ($addOnOption==1) {
+		#-----exact sequential stop-losses resulting in very slightly different risked percentages at each add on 
 		for(my $i = 1; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
-			push(@entriesArr, $entriesArr[$i-1]+$theStepSize);
-			push(@targetsArr, $targetsArr[$i-1]+$theStepSize);
-			push(@stoplossArr,$stoplossArr[$i-1]+$theStepSize);
+			($isTradeALong==1) ? push(@entriesArr, $entriesArr[0]+($i*$theStepSize))  : push(@entriesArr, $entriesArr[0]-($i*$theStepSize));
+			($isTradeALong==1) ? push(@stoplossArr,$stoplossArr[0]+($i*$theStepSize)) : push(@stoplossArr,$stoplossArr[0]-($i*$theStepSize));
+			push(@targetsArr, $targ1); 
 		}
-		# print the original and add-on arrays
-		# print("entries: "); printArrayToScreen(\@entriesArr, 1);
-		# print("stoplosses: "); printArrayToScreen(\@stoplossArr, 1);
-		# print("targets: "); printArrayToScreen(\@targetsArr, 1);
-		
-		# create simple cornix free text templates for the original trade and add-ons 
-		my @multipleCornixTemplatesSimple;
-		for(my $i = 0; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
-			my @tempCornixSimple = createCornixFreeTextSimpleTemplateTT($coinPair, $leverage, $entriesArr[$i], $targetsArr[$i],
-																		$stoplossArr[$i], $noDecimalPlacesForEntriesTargetsAndSLs,
-																		$i);
-			print @tempCornixSimple;
-			trade_stats($entriesArr[$i], $targetsArr[$i], $stoplossArr[$i], $wantedToRiskAmount);
-			push(@multipleCornixTemplatesSimple, @tempCornixSimple);
-			$wantedToRiskAmount /= $addOnReduceMultiple;		# skyscraper building
+	}
+	elsif ($addOnOption==2) {
+		#-----very slightly non-sequential stop-losses resulting in the exact same amount being risked at each add-on
+		for(my $i = 1; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
+			my $entryLong  = $entriesArr[0]+($i*$theStepSize);
+			my $entryShort = $entriesArr[0]-($i*$theStepSize);
+			($isTradeALong==1) ? push(@entriesArr, $entryLong) : push(@entriesArr, $entryShort);
+			($isTradeALong==1) ? push(@stoplossArr,$entryLong*(1-$wantedToRiskPercentage)) : push(@stoplossArr,$entryShort*(1+$wantedToRiskPercentage));
+			push(@targetsArr, $targ1); 
 		}
-		
-		#say @multipleCornixTemplatesSimple; 
+	}
+	else { die "\nerror: option error in add-on generation"; }
+	
+	# tidy up entry, stop-loss and target values in their arrays
+	for(my $i = 0; $i < scalar(@entriesArr); $i++){
+		$entriesArr[$i]  = formatToVariableNumberOfDecimalPlaces($entriesArr[$i],$noDecimalPlacesForEntriesTargetsAndSLs);
+		$stoplossArr[$i] = formatToVariableNumberOfDecimalPlaces($stoplossArr[$i],$noDecimalPlacesForEntriesTargetsAndSLs);
+		$targetsArr[$i]  = formatToVariableNumberOfDecimalPlaces($targetsArr[$i],$noDecimalPlacesForEntriesTargetsAndSLs);
 	}
 	
+	# create simple cornix free text templates for the original trade and add-ons 
+	my @multipleTemplates;
+	for(my $i = 0; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
+		# create simple Cornix free text templates for base trade and TT add-ons
+		my @simpleTemplate = createCornixFreeTextSimpleTemplateTT($coinPair, $leverage, $entriesArr[$i], $targetsArr[$i],
+											$stoplossArr[$i], $noDecimalPlacesForEntriesTargetsAndSLs, $i, $isTradeALong);
+		
+		# create advanced Cornix free text templates for base trade and TT add-ons
+		my @advancedTemplate = createCornixFreeTextAdvancedTemplateTT_PercentBelowHighest($coinPair,$clientSelected,$leverage,$entriesArr[$i],
+										$targetsArr[$i],$stoplossArr[$i],$noDecimalPlacesForEntriesTargetsAndSLs,$i,$isTradeALong,$stepSizeInR);
+		my @currentTemplate;								
+		push(@currentTemplate,@simpleTemplate);
+		push(@currentTemplate,@advancedTemplate);
+		
+		# get the trade statistics
+		my @stats = trade_stats($entriesArr[$i],$targetsArr[$i],$stoplossArr[$i],$wantedToRiskAmount);
 	
-
+		# add trade stats to the end of the templates
+		push(@currentTemplate,@stats);
+		
+		push(@multipleTemplates, @currentTemplate);
+		$wantedToRiskAmount *= $addOnSoftenerMultiple;		# skyscraper, 321, etc
+	}
+		
+	return @multipleTemplates; 
 }
 
 ############################################################################
@@ -354,20 +483,21 @@ my $isTradeALong = checkValuesFromConfigFile(	$configHash{entryValue},
 												$configHash{noDecimalPlacesForEntriesTargetsAndSLs},
 												$configHash{wantedToRiskAmount},
 												$configHash{noOfAddOns},
-												$configHash{addOnReduceMultiple}
+												$configHash{addOnSoftenerMultiple},
+												$configHash{stepSizeInR},
 											);
 																	
-tt_begin($configHash{entryValue}, $configHash{targetValue},	$configHash{stopLoss},
-			$configHash{noOfAddOns}, $configHash{wantedToRiskAmount}, $isTradeALong,
-			$configHash{coinPair}, $configHash{leverage}, $configHash{noDecimalPlacesForEntriesTargetsAndSLs},
-			$configHash{addOnReduceMultiple});
+my @multipleCornixTemplatesSimple = tt_begin($configHash{entryValue},$configHash{targetValue},$configHash{stopLoss},$configHash{noOfAddOns},
+												$configHash{wantedToRiskAmount}, $isTradeALong,$configHash{coinPair}, $configHash{leverage},
+												$configHash{noDecimalPlacesForEntriesTargetsAndSLs},$configHash{addOnSoftenerMultiple},
+												$configHash{stepSizeInR},$configHash{client});
 
 # print templates to screen
-#say @cornixTemplateSimple;
+say @multipleCornixTemplatesSimple;
 
-# # print template to file
-# my $scriptName = basename($0);
-# my $fileName = createOutputFileName($scriptName, $configHash{coinPair}, $isTradeALong);
-# my $fh;
-# open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
-# say $fh @cornixTemplateSimple;
+# print template to file
+my $scriptName = basename($0);
+my $fileName = createOutputFileName($scriptName, $configHash{coinPair}, $isTradeALong);
+my $fh;
+open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
+say $fh @multipleCornixTemplatesSimple;
