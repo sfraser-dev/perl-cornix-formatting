@@ -182,7 +182,8 @@ sub createCornixFreeTextSimpleTemplateTT {
 	my $isTradeALong=$_[7];
 	my @simpleTemplate; 
 
-	push (@simpleTemplate, "########################### simple template add-on $forLoopIncrement\n");
+	if ($forLoopIncrement==0) { push (@simpleTemplate, "########################### simple template base 0\n"); }
+	else { push (@simpleTemplate, "########################### simple template add-on $forLoopIncrement\n"); }
 	
 	push(@simpleTemplate,"$pair\n");
 	if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage cross %sx\n",$leverage)); }
@@ -190,8 +191,10 @@ sub createCornixFreeTextSimpleTemplateTT {
 	my $ent = formatToVariableNumberOfDecimalPlaces($entryValue,$noDecimalPlacesForEntriesTargetsAndSLs);
 	my $targ = formatToVariableNumberOfDecimalPlaces($targetValue,$noDecimalPlacesForEntriesTargetsAndSLs);
 	my $sl = formatToVariableNumberOfDecimalPlaces($stopLoss,$noDecimalPlacesForEntriesTargetsAndSLs);
-	# make all TT trades "breakout" trades (initial base trade too) 
-	($isTradeALong==1) ? push(@simpleTemplate, "enter above $ent\n") : push(@simpleTemplate, "enter below $ent\n");
+	# make base trades regular trades  
+	if ($forLoopIncrement==0) { ($isTradeALong==1) ? push(@simpleTemplate, "enter $ent\n") : push(@simpleTemplate, "enter $ent\n"); }
+	# make add-on trades breakout trades 
+	else { ($isTradeALong==1) ? push(@simpleTemplate, "enter above $ent\n") : push(@simpleTemplate, "enter below $ent\n"); }
 	push(@simpleTemplate, "stop $sl\n");
 	push(@simpleTemplate, "targets $targ\n");
 	
@@ -213,7 +216,8 @@ sub createCornixFreeTextAdvancedTemplateTT_PercentBelowHighest {
 	my $stepSizeInR = $_[9];
 	
 	my @template;
-	push (@template, "########################### advanced template add-on $forLoopIncrement\n");
+	if ($forLoopIncrement==0) { push (@template, "########################### advanced template base 0\n"); }
+	else { push (@template, "########################### advanced template add-on $forLoopIncrement\n"); }
 	
 	# coin pairs
 	push (@template, "$pair\n");
@@ -222,10 +226,14 @@ sub createCornixFreeTextAdvancedTemplateTT_PercentBelowHighest {
 	my $clientName = getCornixClientName($clientSelected);
 	push (@template, "Client: $clientName\n");
 	
-	# long or short trade
-	if ($isTradeALong==1) 		{ push (@template, "Trade Type: Breakout (Long)\n"); }
-	elsif ($isTradeALong==0) 	{ push (@template, "Trade Type: Breakout (Short)\n"); }
-	else 						{ die "error: cannot determine if trade is a long or a short for writing template"; }
+	# make base trades regular trades  
+	if($forLoopIncrement==0) {
+		($isTradeALong==1) ? push(@template,"Trade Type: Regular (Long)\n") : push(@template, "Trade Type: Regular (Short)\n");
+	}
+	# make add-on trades breakout trades 
+	else {
+		($isTradeALong==1) ? push(@template,"Trade Type: Breakout (Long)\n") : push(@template, "Trade Type: Breakout (Short)\n");
+	}
 	
 	# amount of leverage to use (if any at all, "-1" means no leverage)
 	#if ($leverage >= 1) 		{ push (@template, "Leverage: Isolated ($leverage.0X)\n"); }
@@ -365,7 +373,7 @@ sub trade_stats {
 	push(@arr,"wantedToRiskAmount=$str1\n");
 	push(@arr,"wantedToRiskPercentage=$str2\n");
 	push(@arr,"requiredPositionSize=$str3\n");
-	push(@arr,"\n\n");
+	push(@arr,"\n");
 	
 	return @arr;
 }
@@ -389,15 +397,20 @@ sub tt_begin {
 	my $totalNumberOfTradesOriginalAndAddons = $noOfAddOns + 1;
 	my $theStepSize = (abs($ent1-$sl1))*$stepSizeInR;
 
-	# arrays for original trade and calculated TT add-ons
+	# arrays for original trade and calculated TT add-ons templates 
+	# note: these will all have the same SLs & targets (determined by base), only the entries will be different
+	# the SLs in the guidebook arrays will show what the SLs need to be manually set to as the trade progresses
 	my @entriesArr;
 	my @targetsArr;
 	my @stoplossArr;
+	my @guideBookSLs;				# ideal SLs that will need to be manually set
+									# cannot preset add-on SLs above base entry or add-on trades will be cancelled by Cornix
 		
 	# the original trade...
 	push(@entriesArr,$ent1); 
 	push(@targetsArr,$targ1);
-	push(@stoplossArr,$sl1); 
+	push(@stoplossArr,$sl1);
+	push(@guideBookSLs,$sl1);	
 
 	# ...TT add-ons
 	my $wantedToRiskPercentage = (abs($ent1-$sl1))/$ent1; 
@@ -411,7 +424,8 @@ sub tt_begin {
 		#-----exact sequential stop-losses resulting in very slightly different risked percentages at each add on 
 		for(my $i = 1; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
 			($isTradeALong==1) ? push(@entriesArr, $entriesArr[0]+($i*$theStepSize))  : push(@entriesArr, $entriesArr[0]-($i*$theStepSize));
-			($isTradeALong==1) ? push(@stoplossArr,$stoplossArr[0]+($i*$theStepSize)) : push(@stoplossArr,$stoplossArr[0]-($i*$theStepSize));
+			($isTradeALong==1) ? push(@guideBookSLs,$guideBookSLs[0]+($i*$theStepSize)) : push(@guideBookSLs,$guideBookSLs[0]-($i*$theStepSize));
+			push(@stoplossArr, $sl1);
 			push(@targetsArr, $targ1); 
 		}
 	}
@@ -421,7 +435,8 @@ sub tt_begin {
 			my $entryLong  = $entriesArr[0]+($i*$theStepSize);
 			my $entryShort = $entriesArr[0]-($i*$theStepSize);
 			($isTradeALong==1) ? push(@entriesArr, $entryLong) : push(@entriesArr, $entryShort);
-			($isTradeALong==1) ? push(@stoplossArr,$entryLong*(1-$wantedToRiskPercentage)) : push(@stoplossArr,$entryShort*(1+$wantedToRiskPercentage));
+			($isTradeALong==1) ? push(@guideBookSLs,$entryLong*(1-$wantedToRiskPercentage)) : push(@guideBookSLs,$entryShort*(1+$wantedToRiskPercentage));
+			push(@stoplossArr, $sl1);
 			push(@targetsArr, $targ1); 
 		}
 	}
@@ -449,7 +464,7 @@ sub tt_begin {
 		push(@currentTemplate,@advancedTemplate);
 		
 		# get the trade statistics
-		my @stats = trade_stats($entriesArr[$i],$targetsArr[$i],$stoplossArr[$i],$wantedToRiskAmount);
+		my @stats = trade_stats($entriesArr[$i],$targetsArr[$i],$stoplossArr[$i],$wantedToRiskAmount);		
 	
 		# add trade stats to the end of the templates
 		push(@currentTemplate,@stats);
@@ -457,7 +472,23 @@ sub tt_begin {
 		push(@multipleTemplates, @currentTemplate);
 		$wantedToRiskAmount *= $addOnSoftenerMultiple;		# skyscraper, 321, etc
 	}
-		
+	
+	# all trades templates now have the same stop-losses and targets (just different entries).
+	# creating a guidebook to show what the stop-losses should be manually set to as add-on entries are reached
+	my @guideBook;
+	push(@guideBook, "########################### guide book\n");
+	for(my $i = 0; $i < $totalNumberOfTradesOriginalAndAddons; $i++){
+		my $str;
+		if ($i==0) { $str="base: "; }
+		if ($i==1) { $str="add1: "; }
+		if ($i==2) { $str="add2: "; }
+		my $ent = formatToVariableNumberOfDecimalPlaces($entriesArr[$i],$noDecimalPlacesForEntriesTargetsAndSLs);
+		my $targ = formatToVariableNumberOfDecimalPlaces($targetsArr[$i],$noDecimalPlacesForEntriesTargetsAndSLs);
+		my $stop = formatToVariableNumberOfDecimalPlaces($guideBookSLs[$i],$noDecimalPlacesForEntriesTargetsAndSLs);
+		push(@guideBook,"$str entry:$entriesArr[$i] target:$targetsArr[$i] stop:$guideBookSLs[$i]\n");
+	}
+	push(@multipleTemplates,@guideBook);
+	
 	return @multipleTemplates; 
 }
 
