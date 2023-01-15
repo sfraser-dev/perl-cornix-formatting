@@ -13,17 +13,15 @@ sub createOutputFileName {
 	my $scriptName = $_[0];
 	my $pair = $_[1];
 	my $isTradeALong = $_[2];
-	my $txtFile;
-	my $date;
-	my $dateWee;
-	my $pairNoSlash;
 	my $longOrShortStr;
 	$scriptName=~s/\.pl//;
 	#$date = strftime "%Y%m%d-%H%M%S", localtime;
-	$date = strftime "%Y%m%d-%H%M", localtime;
 	#$date = strftime "%Y%m%d", localtime;
-	$dateWee = substr($date, 2);
-	$pairNoSlash = $pair;
+	my $date1 = strftime "%Y%m%d-%H%M", localtime;
+	my $date2 = strftime "%S", localtime;
+	my $date = $date1."_".$date2;
+	my $dateWee = substr($date, 2); 	# use date format 220325 not 20220325
+	my $pairNoSlash = $pair;
 	$pairNoSlash =~ s/\///g;
 	if ($isTradeALong == 1) {
 		$longOrShortStr="long";
@@ -32,7 +30,7 @@ sub createOutputFileName {
 	} else {
 		die "error: trade is neither a long nor a short";
 	}
-	$txtFile = "$dateWee-$pairNoSlash-$longOrShortStr\.trade";
+	my $txtFile = "$dateWee-$pairNoSlash-$longOrShortStr\.trade";
 	return $txtFile;
 }
 
@@ -349,8 +347,8 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $positionSizeEntry1 = $wantedToRiskAmount/$riskPercentageBasedOnEntry1;
 	my $positionSizeAverageEntry = $wantedToRiskAmount/$riskPercentageBasedOnAvgEntry;
 	
-	my @dollarsRiskedAtEachEntry_ent1 = calcRiskAddedAtEachEntry (\@strArrEntries,$noOfEntries,$stopLoss,$positionSizeEntry1);
-	my @dollarsRiskedAtEachEntry_avgEnt = calcRiskAddedAtEachEntry (\@strArrEntries,$noOfEntries,$stopLoss,$positionSizeAverageEntry);
+	my @dollarsRiskedAtEachEntry_ent1 = calcRiskAddedAtEachEntry (\@strArrEntries,$noOfEntries,$stopLoss,$positionSizeEntry1,$wantedToRiskAmount*$riskSoftMult);
+	my @dollarsRiskedAtEachEntry_avgEnt = calcRiskAddedAtEachEntry (\@strArrEntries,$noOfEntries,$stopLoss,$positionSizeAverageEntry,$wantedToRiskAmount);
 	
 	# fixed risk dynamic position size calculation
 	my @temp_arraysConcatenatedReturnedFromSub;
@@ -369,12 +367,16 @@ sub createCornixFreeTextAdvancedTemplate {
 	# show position size needed for required risk percentage (based only on entry1)
 	my $tempEnt1 = "########################### risk based only on entry 1\n";
 	my $tempEnt2 = sprintf("riskPercentageBasedOnEntry1 = %.4f\n",$riskPercentageBasedOnEntry1);
-	my $tempEnt3 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$wantedToRiskAmount)."\n";
-	my $tempEnt4 = sprintf("riskSoftMult = %.4f\n",$riskSoftMult);
+	my $tempEnt3 = sprintf("riskSoftMult = %.4f\n",$riskSoftMult);
+	my $reducedRisk = $wantedToRiskAmount*$riskSoftMult;
+	my $tempEnt5 = sprintf("(\$%0.2f * %0.4f = \$%0.2f)",$wantedToRiskAmount,$riskSoftMult,$reducedRisk);
+	my $tempEnt4 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$reducedRisk);
+	my $tempEnt5 = sprintf("; softened risk is \$%0.2f (\$%0.2f * %0.4f)\n",$reducedRisk,$wantedToRiskAmount,$riskSoftMult);
 	push (@template,$tempEnt1);
 	push (@template,$tempEnt2);
 	push (@template,$tempEnt3);
-	push (@template,$tempEnt4);	
+	push (@template,$tempEnt4);
+	push (@template,$tempEnt5);	
 	# risk added at each entry (based only on entry1)
 	for my $i (0 .. ($noOfEntries-1)) {
 		my $str = sprintf("%s\n",$dollarsRiskedAtEachEntry_ent1[$i]);
@@ -463,6 +465,7 @@ sub calcRiskAddedAtEachEntry {
 	my $noOfEntries=$_[1];
 	my $stopLoss=$_[2];
 	my $fullPositionSize=$_[3];
+	my $wantedToRiskAmount=$_[4];
 	
 	my $totalRiskSoFar=0;
 	my @retArr;
@@ -481,7 +484,9 @@ sub calcRiskAddedAtEachEntry {
 		my $thisRiskedAmount = $thisEntryPositionSize*$thisRiskedPercentage;
 		
 		$totalRiskSoFar += $thisRiskedAmount;
-		my $str1=sprintf("entry %d: riskAmountAddedHere=\$%.2f, totRiskNow=\$%.2f",$entryNo,$thisRiskedAmount,$totalRiskSoFar);
+		my $amountStillLeftToRisk = $wantedToRiskAmount - $totalRiskSoFar;
+		my $str1=sprintf("entry %d: riskAmountAddedHere=\$%.2f, totRiskNow=\$%.2f (\$%0.2f-\$%0.2f=\$%0.2f still to risk)",
+										$entryNo,$thisRiskedAmount,$totalRiskSoFar, $wantedToRiskAmount, $totalRiskSoFar, $amountStillLeftToRisk);
 		push(@retArr,$str1);
 	}
 	return @retArr;
