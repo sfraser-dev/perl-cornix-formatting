@@ -369,7 +369,6 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $tempEnt2 = sprintf("riskPercentageBasedOnEntry1 = %.4f\n",$riskPercentageBasedOnEntry1);
 	my $tempEnt3 = sprintf("riskSoftMult = %.4f\n",$riskSoftMult);
 	my $reducedRisk = $wantedToRiskAmount*$riskSoftMult;
-	my $tempEnt5 = sprintf("(\$%0.2f * %0.4f = \$%0.2f)",$wantedToRiskAmount,$riskSoftMult,$reducedRisk);
 	my $tempEnt4 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$reducedRisk);
 	my $tempEnt5 = sprintf("; softened risk is \$%0.2f (\$%0.2f * %0.4f)\n",$reducedRisk,$wantedToRiskAmount,$riskSoftMult);
 	push (@template,$tempEnt1);
@@ -383,8 +382,8 @@ sub createCornixFreeTextAdvancedTemplate {
 		push(@template,$str);
 	}
 	my $softenedRisk = $wantedToRiskAmount*$riskSoftMult;
-	my $tempEnt5 = sprintf("riskSoftMult: \$%.2f * %.4f = \$%.2f\n\n",$wantedToRiskAmount,$riskSoftMult,$softenedRisk);
-	push (@template,$tempEnt5);
+	my $tempEnt6 = sprintf("riskSoftMult: \$%.2f * %.4f = \$%.2f\n\n",$wantedToRiskAmount,$riskSoftMult,$softenedRisk);
+	push (@template,$tempEnt6);
 
 	# show position size needed for required risk percentage (based average entry)
 	my $tempAvg1 = "########################### risk based on average entry\n";
