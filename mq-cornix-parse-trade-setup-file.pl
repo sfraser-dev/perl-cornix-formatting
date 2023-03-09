@@ -17,10 +17,10 @@ sub createOutputFileName {
 	$scriptName=~s/\.pl//;
 	#$date = strftime "%Y%m%d-%H%M%S", localtime;
 	#$date = strftime "%Y%m%d", localtime;
-	my $date1 = strftime "%Y%m%d-%H%M", localtime;
-	my $date2 = strftime "%S", localtime;
-	my $date = $date1."_".$date2;
-	my $dateWee = substr($date, 2); 	# use date format 220325 not 20220325
+	my $date1 = strftime "%Y%m%d---%H%M", localtime; 
+	my $date2 = strftime "%S", localtime;			
+	my $date = $date1."_".$date2;		# YYYYMMDD---HM_SS
+	my $dateWee = substr($date, 2); 	# YYMMDD---HHMM_SS (use date format 220325 not 20220325)
 	my $pairNoSlash = $pair;
 	$pairNoSlash =~ s/\///g;
 	if ($isTradeALong == 1) {
@@ -30,7 +30,7 @@ sub createOutputFileName {
 	} else {
 		die "error: trade is neither a long nor a short";
 	}
-	my $txtFile = "$dateWee-$pairNoSlash-$longOrShortStr\.trade";
+	my $txtFile = "$dateWee---$pairNoSlash-$longOrShortStr\.trade";
 	return $txtFile;
 }
 
@@ -364,26 +364,27 @@ sub createCornixFreeTextAdvancedTemplate {
 		}
 	}		
 	
-	# show position size needed for required risk percentage (based only on entry1)
-	my $tempEnt1 = "########################### risk based only on entry 1\n";
-	my $tempEnt2 = sprintf("riskPercentageBasedOnEntry1 = %.4f\n",$riskPercentageBasedOnEntry1);
-	my $tempEnt3 = sprintf("riskSoftMult = %.4f\n",$riskSoftMult);
-	my $reducedRisk = $wantedToRiskAmount*$riskSoftMult;
-	my $tempEnt4 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$reducedRisk);
-	my $tempEnt5 = sprintf("; softened risk is \$%0.2f (\$%0.2f * %0.4f)\n",$reducedRisk,$wantedToRiskAmount,$riskSoftMult);
-	push (@template,$tempEnt1);
-	push (@template,$tempEnt2);
-	push (@template,$tempEnt3);
-	push (@template,$tempEnt4);
-	push (@template,$tempEnt5);	
-	# risk added at each entry (based only on entry1)
-	for my $i (0 .. ($noOfEntries-1)) {
-		my $str = sprintf("%s\n",$dollarsRiskedAtEachEntry_ent1[$i]);
-		push(@template,$str);
-	}
-	my $softenedRisk = $wantedToRiskAmount*$riskSoftMult;
-	my $tempEnt6 = sprintf("riskSoftMult: \$%.2f * %.4f = \$%.2f\n\n",$wantedToRiskAmount,$riskSoftMult,$softenedRisk);
-	push (@template,$tempEnt6);
+	# # show position size needed for required risk percentage (based only on entry1)
+	###### commenting out risk-softening-multiplier output information, never using it just now
+	# my $tempEnt1 = "########################### risk based only on entry 1\n";
+	# my $tempEnt2 = sprintf("riskPercentageBasedOnEntry1 = %.4f\n",$riskPercentageBasedOnEntry1);
+	# my $tempEnt3 = sprintf("riskSoftMult = %.4f\n",$riskSoftMult);
+	# my $reducedRisk = $wantedToRiskAmount*$riskSoftMult;
+	# my $tempEnt4 = "position size of \$".sprintf("%.2f",$positionSizeEntry1)." is needed to risk \$".sprintf("%.2f",$reducedRisk);
+	# my $tempEnt5 = sprintf("; softened risk is \$%0.2f (\$%0.2f * %0.4f)\n",$reducedRisk,$wantedToRiskAmount,$riskSoftMult);
+	# push (@template,$tempEnt1);
+	# push (@template,$tempEnt2);
+	# push (@template,$tempEnt3);
+	# push (@template,$tempEnt4);
+	# push (@template,$tempEnt5);	
+	# # risk added at each entry (based only on entry1)
+	# for my $i (0 .. ($noOfEntries-1)) {
+		# my $str = sprintf("%s\n",$dollarsRiskedAtEachEntry_ent1[$i]);
+		# push(@template,$str);
+	# }
+	# my $softenedRisk = $wantedToRiskAmount*$riskSoftMult;
+	# my $tempEnt6 = sprintf("riskSoftMult: \$%.2f * %.4f = \$%.2f\n\n",$wantedToRiskAmount,$riskSoftMult,$softenedRisk);
+	# push (@template,$tempEnt6);
 
 	# show position size needed for required risk percentage (based average entry)
 	my $tempAvg1 = "########################### risk based on average entry\n";
@@ -399,14 +400,14 @@ sub createCornixFreeTextAdvancedTemplate {
 	}
 	
 	# Optional: show fixed risk dynamic position sizes 
-	if ($dynamicEntryValue != 0) { 
+	if ($dynamicEntryValue != 0) {
 		# entry1
 		push(@template,"\n########################### fixed risk dynamic position size\n");
 		push (@template,"### only on entry 1\n");
 		for my $i (0 .. ($noOfEntries-1)) {
 			push (@template,$frdps_dataEnt1[$i]);
 		}
-		# average entry
+		average entry
 		push (@template,"### average entry\n");
 		for my $i (0 .. ($noOfEntries-1)) {
 			push (@template,$frdps_dataAvgEnt[$i]);
