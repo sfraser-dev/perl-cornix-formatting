@@ -337,7 +337,8 @@ sub createCornixFreeTextAdvancedTemplate {
 	my $trailingLine01 = "Trailing Configuration:";
 	my $trailingLine02 = "Entry: Percentage (0.0%)";
 	my $trailingLine03 = "Take-Profit: Percentage (0.0%)";
-	my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
+	#my $trailingLine04 = "Stop: Breakeven -\n Trigger: Target (1)";
+	my $trailingLine04 = "Stop: Without";
 	push (@template,"$trailingLine01\n$trailingLine02\n$trailingLine03\n$trailingLine04\n\n");
 	
 	# risk softening multiplier (just for risk based on only entry1) and risk percentages (risked amount is based on entry and stop-loss)
