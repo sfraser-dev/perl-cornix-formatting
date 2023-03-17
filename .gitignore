@@ -3,6 +3,9 @@
 # Learn more about .gitignore:
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
+# the sample file is in git (don't update git with every new trade)
+mq-trade-setup.config
+
 # Node artifact files
 node_modules/
 dist/
