@@ -4,7 +4,10 @@
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
 # the sample file is in git (don't update git with every new trade)
-mq-trade-setup.config
+mq-trade-setup-git-untracked.config
+SPOT/
+tt-pics-can-delete/
+actual-trades-shortcut
 
 # Node artifact files
 node_modules/
