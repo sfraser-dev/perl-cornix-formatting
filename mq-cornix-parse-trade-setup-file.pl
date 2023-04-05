@@ -684,21 +684,54 @@ sub createCornixFreeTextSimpleTemplate {
 	my $lowTarget=$_[5];
 	my $stopLoss=$_[6];
 	my $noDecimalPlacesForEntriesTargetsAndSLs=$_[7];
+	my $noOfEntries=$_[8];
+	my $noOfTargets=$_[9];
+	my $isTradeALong=$_[10];
 	my @simpleTemplate; 
 
 	push (@simpleTemplate, "########################### simple template\n");
 	push(@simpleTemplate,"$pair\n");
 	#if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage isolated %sx\n",$leverage)); }
 	if ($leverage >= 1) { push (@simpleTemplate, sprintf("leverage cross %sx\n",$leverage)); }
-	
-	my $he = formatToVariableNumberOfDecimalPlaces($highEntry,$noDecimalPlacesForEntriesTargetsAndSLs);
-	my $le = formatToVariableNumberOfDecimalPlaces($lowEntry,$noDecimalPlacesForEntriesTargetsAndSLs);
-	my $ht = formatToVariableNumberOfDecimalPlaces($highTarget,$noDecimalPlacesForEntriesTargetsAndSLs);
-	my $lt = formatToVariableNumberOfDecimalPlaces($lowTarget,$noDecimalPlacesForEntriesTargetsAndSLs);
+
+	# note: Need to set up each Cornix client (bot configuration - trading) with desired entry and target distributions
+	# note: Need to do this for each individual client, there is no global setting for this
 	my $sl = formatToVariableNumberOfDecimalPlaces($stopLoss,$noDecimalPlacesForEntriesTargetsAndSLs);
-	push(@simpleTemplate, "enter $he $le\n");
-	push(@simpleTemplate, "stop $sl\n");
-	push(@simpleTemplate, "targets $lt $ht\n");
+	
+	# Set weighting factors set to 0 (Cornix Free Text simple mode cannot set percentage weighting factors at all)
+	# Cornix Free Text simple mode can only setsentry, target and stop-loss VALUES, it cannot set weighting factor percentages
+	# Only in Cornix Free Text advanced mode (when choose to edit trade) can we set weighting factor percentages 
+	my $weightingFactorEntries=0;
+	my $weightingFactorTargets=0;
+	my @strArrEntries = HeavyWeightingAtEntryOrStoploss("entries",$noOfEntries,$highEntry,$lowEntry,$isTradeALong,$weightingFactorEntries,$noDecimalPlacesForEntriesTargetsAndSLs);
+	my @strArrTargets = HeavyWeightingAtEntryOrStoploss("targets",$noOfTargets,$highTarget,$lowTarget,$isTradeALong,$weightingFactorTargets,$noDecimalPlacesForEntriesTargetsAndSLs);
+	
+	my @entryVals;
+	my @targetVals;
+	# get all the entry values
+	for my $i (0 .. $#strArrEntries) {
+		my @splitter=split / /, $strArrEntries[$i];	# split line using spaces, [0]=1), [1]=value, [2]=hyphen, [3]=percentage
+		my $val = ($splitter[1]);
+		push(@entryVals, formatToVariableNumberOfDecimalPlaces($val,$noDecimalPlacesForEntriesTargetsAndSLs));
+	}
+	# get all the target values
+	for my $i (0 .. $#strArrTargets) {
+		my @splitter=split / /, $strArrTargets[$i];	# split line using spaces, [0]=1), [1]=value, [2]=hyphen, [3]=percentage
+		my $val = ($splitter[1]);
+		push(@targetVals, $val);
+	}
+
+	# push all the entry values onto the simpleTemplate
+	push(@simpleTemplate, "enter ");
+	for my $i (0 .. $#entryVals) {
+		push(@simpleTemplate,"$entryVals[$i] ");
+	}
+	# push all the target values onto the simpleTemplate
+	push(@simpleTemplate, "\nstop $sl\n");
+	push(@simpleTemplate, "targets ");
+	for my $i (0 .. $#targetVals) {
+		push(@simpleTemplate, "$targetVals[$i] ");
+	}
 	
 	return @simpleTemplate;
 }
@@ -842,7 +875,10 @@ my @cornixTemplateSimple = createCornixFreeTextSimpleTemplate($configHash{coinPa
 																	$configHash{highTarget},
 																	$configHash{lowTarget},
 																	$configHash{stopLoss},
-																	$configHash{noDecimalPlacesForEntriesTargetsAndSLs});
+																	$configHash{noDecimalPlacesForEntriesTargetsAndSLs},
+																	$configHash{numberOfEntries},
+																	$configHash{numberOfTargets},
+																	$isTradeALong);
 
 # create the advanced cornix template as an array of strings
 my @cornixTemplateAdvanced = createCornixFreeTextAdvancedTemplate($configHash{coinPair},
