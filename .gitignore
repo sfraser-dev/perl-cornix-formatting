@@ -3,11 +3,15 @@
 # Learn more about .gitignore:
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
-# the sample file is in git (don't update git with every new trade)
-mq-trade-setup-git-untracked.config
+# me
 SPOT/
 tt-pics-can-delete/
 actual-trades-shortcut
+actual-trades-shortcut.lnk
+tt-pics-can-delete/
+# the sample file is in git (don't update git with every new trade)
+mq-trade-setup-git-untracked.config
+
 
 # Node artifact files
 node_modules/
@@ -53,7 +57,3 @@ Thumbs.db
 *.flv
 *.mov
 *.wmv
-
-# mq
-actual-trades-shortcut.lnk
-tt-pics-can-delete/
