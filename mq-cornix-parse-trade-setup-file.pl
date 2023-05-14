@@ -909,5 +909,5 @@ my $fh;
 open ($fh, '>', $fileName) or die ("Could not open file '$fileName' $!");
 say $fh @cornixTemplateSimple;
 say $fh @cornixTemplateAdvanced;
-
+close $fh;
 	
